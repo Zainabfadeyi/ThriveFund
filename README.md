@@ -6,8 +6,18 @@ Save, collect, and reconcile payments effortlessly — a React web app for Niger
 
 ```
 ThriveFund/
+├── docs/        # Architecture & API documentation
 └── frontend/    # React + Vite + TypeScript + Tailwind
 ```
+
+## Documentation
+
+See the [docs/](./docs/) folder for:
+
+- [Architecture Overview](./docs/architecture-overview.md)
+- [API Endpoints (full reference)](./docs/api/endpoints.md)
+- [API Quick Reference](./docs/api/quick-reference.md)
+- [Webhook Specification](./docs/api/webhooks.md)
 
 ## Getting Started
 
