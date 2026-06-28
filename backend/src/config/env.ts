@@ -11,7 +11,7 @@ const schema = z.object({
   DB_HOST: z.string().min(1),
   DB_PORT: z.coerce.number().default(3306),
   DB_USER: z.string().min(1),
-  DB_PASS: z.string().min(1),
+  DB_PASS: z.string().default(''),
   DB_NAME: z.string().min(1),
   JWT_SECRET: z.string().min(32),
   JWT_REFRESH_SECRET: z.string().min(32),

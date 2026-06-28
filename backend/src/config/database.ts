@@ -2,6 +2,8 @@ import mysql from 'mysql2/promise';
 import type { RowDataPacket, ResultSetHeader } from 'mysql2';
 import { env } from './env';
 
+const isLocal = env.DB_HOST === 'localhost' || env.DB_HOST === '127.0.0.1';
+
 export const db = mysql.createPool({
   host: env.DB_HOST,
   port: env.DB_PORT,
@@ -10,7 +12,8 @@ export const db = mysql.createPool({
   database: env.DB_NAME,
   waitForConnections: true,
   connectionLimit: 10,
-  ssl: { rejectUnauthorized: false }, // required for AWS RDS
+  // SSL only for remote hosts (e.g. AWS RDS)
+  ...(isLocal ? {} : { ssl: { rejectUnauthorized: false } }),
 });
 
 /** Run a SELECT — returns typed rows. */
