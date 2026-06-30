@@ -12,12 +12,11 @@ Next.js dashboard for payment collection and reconciliation.
 
 ## API integration
 
-The frontend is wired to the backend API. See **[INTEGRATION.md](./INTEGRATION.md)** for setup, test credentials, and endpoint mapping.
+The frontend is wired to the backend API. See **[INTEGRATION.md](./INTEGRATION.md)** for setup and endpoint mapping.
 
 ```bash
 # frontend/.env.local
 NEXT_PUBLIC_API_BASE_URL=http://localhost:3001/api/v1
-NEXT_PUBLIC_WEBHOOK_BASE_URL=http://localhost:3001/api/webhooks
 ```
 
 API client: `lib/api/client.ts` · Contract: `lib/api/contract.ts` · Hooks: `hooks/use-api.ts`
@@ -31,11 +30,11 @@ npm run dev
 
 Open [http://localhost:3000](http://localhost:3000)
 
-## Demo flow
+## User Flow
 
-1. Landing → **View Demo Dashboard** or Login with seed credentials
+1. Landing → sign in or create an account
 2. Dashboard → review stats and reconciliation health
-3. Campaigns → open campaign detail → mock virtual account + QR
+3. Campaigns → open campaign detail → virtual account + QR
 4. Reconciliation → review matched/unmatched payments
 5. Public page → `/c/greenfield-term-2-tuition`
 

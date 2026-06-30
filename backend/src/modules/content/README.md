@@ -6,9 +6,9 @@ Static/reference data endpoints — categories, banks, and FAQ content. All publ
 
 | Method | Path | Auth | Status |
 |--------|------|------|--------|
-| GET    | `/api/v1/categories` | Public | ⬜ TODO |
-| GET    | `/api/v1/banks/supported` | Public | ⬜ TODO |
-| GET    | `/api/v1/content/faqs` | Public | ⬜ TODO |
+| GET    | `/api/v1/categories` | Public | Available |
+| GET    | `/api/v1/banks/supported` | Public | Available |
+| GET    | `/api/v1/content/faqs` | Public | Available |
 
 ## Notes
 

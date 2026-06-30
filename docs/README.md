@@ -1,6 +1,6 @@
 # ThriveFund Documentation
 
-Technical documentation for the ThriveFund platform — a goal-based savings and payment reconciliation product built on **Nomba Dedicated Virtual Accounts** (Nomba x DevCareer Hackathon 2026).
+Technical documentation for the ThriveFund platform — a goal-based savings and payment reconciliation product built on **Nomba Dedicated Virtual Accounts**.
 
 ## Documents
 

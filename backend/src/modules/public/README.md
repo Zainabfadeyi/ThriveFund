@@ -6,8 +6,8 @@ Unauthenticated endpoints for the shareable contribution page visible to externa
 
 | Method | Path | Auth | Status |
 |--------|------|------|--------|
-| GET    | `/api/v1/public/goals/:slug` | Public | ⬜ TODO |
-| GET    | `/api/v1/public/goals/:slug/virtual-account` | Public | ⬜ TODO |
+| GET    | `/api/v1/public/goals/:slug` | Public | Available |
+| GET    | `/api/v1/public/goals/:slug/virtual-account` | Public | Available |
 
 ## Notes
 

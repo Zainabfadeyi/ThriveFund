@@ -29,7 +29,7 @@ export default function CampaignsPage() {
       />
 
       {!campaigns.length ? (
-        <EmptyState title="No campaigns yet" description="Create a campaign and assign a mock virtual account." />
+        <EmptyState title="No campaigns yet" description="Create a campaign and assign a virtual account." />
       ) : (
         <div className="space-y-4">
           {campaigns.map((c) => {

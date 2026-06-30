@@ -115,7 +115,6 @@ export const API_ENDPOINTS = {
   },
   webhooks: {
     nomba: 'POST /api/webhooks/nomba',
-    mockSimulate: 'POST /api/webhooks/mock/simulate',
   },
   health: {
     liveness: 'GET /health',
@@ -128,11 +127,4 @@ export const MISSING_BACKEND_ENDPOINTS = [
   'GET /contributors/:id — single contributor detail with outstanding balance',
   'POST /reports/generate — on-demand PDF report generation',
   'GET /organizations/:id/stats — aggregated org stats (frontend derives from list)',
-] as const;
-
-/** Mock/pre-Nomba flows (backend MockNombaProvider) */
-export const MOCK_FLOWS = [
-  'POST /goals/:id/virtual-account — MockNombaProvider generates test VA',
-  'POST /api/webhooks/mock/simulate — simulates incoming payment (dev only)',
-  'POST /api/webhooks/nomba — accepts mock-signed payloads via MockNombaProvider',
 ] as const;

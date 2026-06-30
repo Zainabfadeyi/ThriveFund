@@ -6,9 +6,9 @@ Liveness and readiness probes for load balancers and deployment platforms.
 
 | Method | Path | Auth | Status |
 |--------|------|------|--------|
-| GET    | `/api/v1/health` | Public | ⬜ TODO |
-| GET    | `/api/v1/health/ready` | Public | ⬜ TODO |
-| GET    | `/health` | Public | ⬜ TODO |
+| GET    | `/api/v1/health` | Public | Available |
+| GET    | `/api/v1/health/ready` | Public | Available |
+| GET    | `/health` | Public | Available |
 
 > `/health` (no prefix) is also mounted in `app.ts` for load balancer compatibility.
 

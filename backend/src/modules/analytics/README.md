@@ -6,11 +6,11 @@ Dashboard stats and chart data. This router is mounted at **both** `/api/v1/dash
 
 | Method | Path | Auth | Status |
 |--------|------|------|--------|
-| GET | `/api/v1/dashboard/overview` | User | ⬜ TODO |
-| GET | `/api/v1/analytics/monthly-contributions` | User | ⬜ TODO |
-| GET | `/api/v1/analytics/category-breakdown` | User | ⬜ TODO |
-| GET | `/api/v1/analytics/top-contributors` | User | ⬜ TODO |
-| GET | `/api/v1/analytics/goal-performance` | User | ⬜ TODO |
+| GET | `/api/v1/dashboard/overview` | User | Available |
+| GET | `/api/v1/analytics/monthly-contributions` | User | Available |
+| GET | `/api/v1/analytics/category-breakdown` | User | Available |
+| GET | `/api/v1/analytics/top-contributors` | User | Available |
+| GET | `/api/v1/analytics/goal-performance` | User | Available |
 
 ## Query Params
 

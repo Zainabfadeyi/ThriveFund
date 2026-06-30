@@ -168,7 +168,7 @@ export default function LandingPage() {
 
       <section className="py-20">
         <div className="mx-auto max-w-3xl px-6 text-center">
-          <h2 className="mb-4 text-3xl font-bold text-thrive-dark">Ready to reconcile smarter?</h2>
+          <h2 className="mb-4 text-3xl font-bold text-thrive-dark">Ready to reconcile payments?</h2>
           <p className="mb-8 text-slate-600">Join organizations across Nigeria using ThriveFund for payment operations.</p>
           <Button size="lg" asChild><Link href="/signup">Create Free Account</Link></Button>
         </div>
@@ -177,7 +177,7 @@ export default function LandingPage() {
       <footer className="border-t border-slate-100 bg-slate-50 py-10">
         <div className="mx-auto flex max-w-6xl flex-col items-center justify-between gap-4 px-6 sm:flex-row">
           <Logo />
-          <p className="text-sm text-muted-foreground">© 2026 ThriveFund. {paymentModeCopy.short}.</p>
+          <p className="text-sm text-muted-foreground">© 2026 ThriveFund. Built for transparent payment operations.</p>
         </div>
       </footer>
     </div>

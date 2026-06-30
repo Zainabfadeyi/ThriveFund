@@ -6,11 +6,11 @@ User profile management and notification preferences.
 
 | Method | Path | Auth | Status |
 |--------|------|------|--------|
-| GET    | `/api/v1/users/me` | User | ⬜ TODO |
-| PATCH  | `/api/v1/users/me` | User | ⬜ TODO |
-| PATCH  | `/api/v1/users/me/password` | User | ⬜ TODO |
-| GET    | `/api/v1/users/me/notification-preferences` | User | ⬜ TODO |
-| PATCH  | `/api/v1/users/me/notification-preferences` | User | ⬜ TODO |
+| GET    | `/api/v1/users/me` | User | Available |
+| PATCH  | `/api/v1/users/me` | User | Available |
+| PATCH  | `/api/v1/users/me/password` | User | Available |
+| GET    | `/api/v1/users/me/notification-preferences` | User | Available |
+| PATCH  | `/api/v1/users/me/notification-preferences` | User | Available |
 
 ## Notes
 

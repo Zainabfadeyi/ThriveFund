@@ -43,7 +43,7 @@ export default function TransactionsPage() {
         </CardContent>
       </Card>
       {!txns.length ? (
-        <EmptyState title="No transactions" description="Payments appear after webhook simulation or mock transfers." />
+        <EmptyState title="No transactions" description="Payments appear after Nomba confirms incoming transfers." />
       ) : (
         <>
           <Card>

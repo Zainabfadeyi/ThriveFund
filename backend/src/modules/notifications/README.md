@@ -6,10 +6,10 @@ In-app notification feed. Notifications are created by the webhook processor whe
 
 | Method | Path | Auth | Status |
 |--------|------|------|--------|
-| GET    | `/api/v1/notifications` | User | ⬜ TODO |
-| GET    | `/api/v1/notifications/unread-count` | User | ⬜ TODO |
-| PATCH  | `/api/v1/notifications/:id/read` | User | ⬜ TODO |
-| POST   | `/api/v1/notifications/read-all` | User | ⬜ TODO |
+| GET    | `/api/v1/notifications` | User | Available |
+| GET    | `/api/v1/notifications/unread-count` | User | Available |
+| PATCH  | `/api/v1/notifications/:id/read` | User | Available |
+| POST   | `/api/v1/notifications/read-all` | User | Available |
 
 ## Query Params (`GET /notifications`)
 

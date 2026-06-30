@@ -937,7 +937,7 @@ Manually add a contributor profile (pre-invite).
 
 ### `POST /goals/{id}/invitations`
 
-Send invitation via email or SMS (mock for hackathon).
+Send invitation via email or SMS.
 
 | | |
 |---|---|
@@ -1523,4 +1523,4 @@ These are **outbound calls** from the ThriveFund backend to Nomba. Document in i
 
 ---
 
-*Last updated: June 2026 · Nomba x DevCareer Hackathon 2026*
+*Last updated: June 2026*

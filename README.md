@@ -45,7 +45,7 @@ npm run dev
 
 API runs at [http://localhost:3001/api/v1](http://localhost:3001/api/v1).
 
-See [backend/README.md](./backend/README.md) for mock payment demo flow.
+See [backend/README.md](./backend/README.md) for backend setup and payment configuration.
 
 ## Build
 

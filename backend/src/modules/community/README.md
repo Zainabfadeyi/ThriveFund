@@ -6,8 +6,8 @@ Filters goals by community/religious categories, and provides global search acro
 
 | Method | Path | Auth | Status |
 |--------|------|------|--------|
-| GET    | `/api/v1/community-projects` | User | ⬜ TODO |
-| GET    | `/api/v1/search?q=` | User | ⬜ TODO |
+| GET    | `/api/v1/community-projects` | User | Available |
+| GET    | `/api/v1/search?q=` | User | Available |
 
 ## Query Params
 

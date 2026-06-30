@@ -1,4 +1,3 @@
-import { env } from '../../config/env';
 import { NombaProvider } from './nomba.provider';
 import type { PaymentProvider } from './payment-provider.interface';
 

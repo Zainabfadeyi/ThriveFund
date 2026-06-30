@@ -11,8 +11,8 @@ import { toast } from 'sonner';
 
 export default function LoginPage() {
   const { login } = useAuth();
-  const [email, setEmail] = useState('adebayo@thrivefund.ng');
-  const [password, setPassword] = useState('DemoPass123!');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
   const [submitting, setSubmitting] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {

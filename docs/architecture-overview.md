@@ -1,7 +1,5 @@
 # Architecture Overview
 
-> Derived from the ThriveFund Architecture Document (Nomba x DevCareer Hackathon 2026).
-
 ## Product Summary
 
 ThriveFund helps individuals, communities, schools, small businesses, and cooperatives collect money through **dedicated virtual accounts**. Each goal or customer receives a unique account number, and every incoming transfer is automatically matched to the correct goal, contributor, and transaction record.
@@ -12,7 +10,7 @@ ThriveFund helps individuals, communities, schools, small businesses, and cooper
 |------|----------|
 | Track | Dedicated Virtual Accounts |
 | Primary use case | Goal-based savings, group contributions, payment reconciliation |
-| Build style | Web MVP — backend API, React dashboard, Nomba virtual accounts, webhook processing |
+| Build style | Web platform — backend API, React dashboard, Nomba virtual accounts, webhook processing |
 
 ### MVP (Must-have)
 
@@ -32,17 +30,17 @@ ThriveFund helps individuals, communities, schools, small businesses, and cooper
 - Role-based access (owner, admin, viewer)
 - Transaction status badges: successful, pending review, failed, duplicate
 
-### Out of scope (hackathon)
+### Current Exclusions
 
-- Mobile app, AI features, complex KYC, full accounting/lending/wallet, multi-currency
+- Mobile app, complex KYC, full accounting/lending/wallet, multi-currency
 
 ## High-Level Architecture
 
 ```
 ┌─────────────────┐     ┌─────────────────┐     ┌──────────────────┐
 │  Frontend       │────▶│  Backend API    │────▶│  PostgreSQL      │
-│  React+Tailwind │     │  Django DRF /   │     │  Users, goals,   │
-│                 │     │  Spring Boot    │     │  accounts, txns  │
+│  React+Tailwind │     │  Express / TS   │     │  Users, goals,   │
+│                 │     │                 │     │  accounts, txns  │
 └─────────────────┘     └────────┬────────┘     └──────────────────┘
                                  │
                     ┌────────────┼────────────┐
@@ -50,7 +48,7 @@ ThriveFund helps individuals, communities, schools, small businesses, and cooper
               ┌──────────┐ ┌──────────┐ ┌─────────────┐
               │ Nomba API│ │ Webhook  │ │ Notification│
               │ Virtual  │ │ /nomba   │ │ Email/WA    │
-              │ accounts │ │          │ │ (mock)      │
+              │ accounts │ │          │ │ Brevo       │
               └──────────┘ └──────────┘ └─────────────┘
 ```
 
@@ -85,9 +83,9 @@ ThriveFund helps individuals, communities, schools, small businesses, and cooper
 | Database | MySQL 8 (AWS RDS) |
 | Auth | JWT |
 | Email | Brevo |
-| Payments | PaymentProvider abstraction (MockNomba → Nomba on July 1) |
+| Payments | Nomba virtual accounts, transfers, and webhooks |
 | Hosting | AWS EC2 |
-| API docs | OpenAPI / Postman collection |
+| API docs | OpenAPI |
 
 ## Reconciliation Rules
 

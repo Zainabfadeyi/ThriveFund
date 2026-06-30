@@ -6,35 +6,35 @@ Core resource — savings/contribution goals with full CRUD, nested sub-resource
 
 | Method | Path | Auth | Status |
 |--------|------|------|--------|
-| POST   | `/api/v1/goals` | User | ⬜ TODO |
-| GET    | `/api/v1/goals` | User | ⬜ TODO |
-| GET    | `/api/v1/goals/:id` | User (owner) | ⬜ TODO |
-| PATCH  | `/api/v1/goals/:id` | User (owner) | ⬜ TODO |
-| DELETE | `/api/v1/goals/:id` | User (owner) | ⬜ TODO |
-| POST   | `/api/v1/goals/:id/close` | User (owner) | ⬜ TODO |
-| GET    | `/api/v1/goals/:id/share` | User (owner) | ⬜ TODO |
+| POST   | `/api/v1/goals` | User | Available |
+| GET    | `/api/v1/goals` | User | Available |
+| GET    | `/api/v1/goals/:id` | User (owner) | Available |
+| PATCH  | `/api/v1/goals/:id` | User (owner) | Available |
+| DELETE | `/api/v1/goals/:id` | User (owner) | Available |
+| POST   | `/api/v1/goals/:id/close` | User (owner) | Available |
+| GET    | `/api/v1/goals/:id/share` | User (owner) | Available |
 
 ### Nested — Virtual Accounts
 
 | Method | Path | Auth | Status |
 |--------|------|------|--------|
-| POST   | `/api/v1/goals/:id/virtual-account` | User | ⬜ TODO |
-| GET    | `/api/v1/goals/:id/virtual-account` | User (owner) | ⬜ TODO |
+| POST   | `/api/v1/goals/:id/virtual-account` | User | Available |
+| GET    | `/api/v1/goals/:id/virtual-account` | User (owner) | Available |
 
 ### Nested — Transactions
 
 | Method | Path | Auth | Status |
 |--------|------|------|--------|
-| GET    | `/api/v1/goals/:id/transactions` | User (owner) | ⬜ TODO |
+| GET    | `/api/v1/goals/:id/transactions` | User (owner) | Available |
 
 ### Nested — Contributors & Invitations
 
 | Method | Path | Auth | Status |
 |--------|------|------|--------|
-| GET    | `/api/v1/goals/:id/contributors` | User (owner) | ⬜ TODO |
-| POST   | `/api/v1/goals/:id/contributors` | User (owner) | ⬜ TODO |
-| POST   | `/api/v1/goals/:id/invitations` | User (owner) | ⬜ TODO |
-| GET    | `/api/v1/goals/:id/invitations` | User (owner) | ⬜ TODO |
+| GET    | `/api/v1/goals/:id/contributors` | User (owner) | Available |
+| POST   | `/api/v1/goals/:id/contributors` | User (owner) | Available |
+| POST   | `/api/v1/goals/:id/invitations` | User (owner) | Available |
+| GET    | `/api/v1/goals/:id/invitations` | User (owner) | Available |
 
 ## Notes
 

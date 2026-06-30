@@ -6,13 +6,13 @@ Handles user registration, login, token management, and password reset.
 
 | Method | Path | Auth | Status |
 |--------|------|------|--------|
-| POST | `/api/v1/auth/register` | Public | ⬜ TODO |
-| POST | `/api/v1/auth/login` | Public | ⬜ TODO |
-| POST | `/api/v1/auth/refresh` | Public | ⬜ TODO |
-| POST | `/api/v1/auth/logout` | User (JWT) | ⬜ TODO |
-| POST | `/api/v1/auth/forgot-password` | Public | ⬜ TODO |
-| POST | `/api/v1/auth/reset-password` | Public | ⬜ TODO |
-| GET  | `/api/v1/auth/me` | User (JWT) | ⬜ TODO |
+| POST | `/api/v1/auth/register` | Public | Available |
+| POST | `/api/v1/auth/login` | Public | Available |
+| POST | `/api/v1/auth/refresh` | Public | Available |
+| POST | `/api/v1/auth/logout` | User (JWT) | Available |
+| POST | `/api/v1/auth/forgot-password` | Public | Available |
+| POST | `/api/v1/auth/reset-password` | Public | Available |
+| GET  | `/api/v1/auth/me` | User (JWT) | Available |
 
 ## Notes
 

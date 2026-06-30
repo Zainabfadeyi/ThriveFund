@@ -8,15 +8,15 @@ One dedicated Nomba virtual account per goal. Creation calls Nomba API; all inco
 
 | Method | Path | Auth | Status |
 |--------|------|------|--------|
-| GET    | `/api/v1/virtual-accounts` | User | ⬜ TODO |
-| GET    | `/api/v1/virtual-accounts/:id` | User (owner) | ⬜ TODO |
+| GET    | `/api/v1/virtual-accounts` | User | Available |
+| GET    | `/api/v1/virtual-accounts/:id` | User (owner) | Available |
 
 ### Nested routes (mounted inside Goals module at `/api/v1/goals/:id/...`)
 
 | Method | Path | Auth | Status |
 |--------|------|------|--------|
-| POST   | `/api/v1/goals/:id/virtual-account` | User | ⬜ TODO |
-| GET    | `/api/v1/goals/:id/virtual-account` | User (owner) | ⬜ TODO |
+| POST   | `/api/v1/goals/:id/virtual-account` | User | Available |
+| GET    | `/api/v1/goals/:id/virtual-account` | User (owner) | Available |
 
 ## Notes
 

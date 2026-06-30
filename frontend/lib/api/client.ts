@@ -38,9 +38,6 @@ export function clearTokens() {
 export const API_BASE =
   process.env.NEXT_PUBLIC_API_BASE_URL ?? 'http://localhost:3001/api/v1';
 
-export const WEBHOOK_BASE =
-  process.env.NEXT_PUBLIC_WEBHOOK_BASE_URL ?? 'http://localhost:3001/api/webhooks';
-
 type RequestOptions = RequestInit & {
   params?: Record<string, string | number | boolean | undefined>;
   skipAuth?: boolean;
@@ -129,19 +126,4 @@ export async function apiRequest<T>(
 
   const ok = json as ApiResponse<T>;
   return { data: ok.data, meta: ok.meta };
-}
-
-export async function webhookRequest<T>(path: string, body: unknown): Promise<T> {
-  const url = `${WEBHOOK_BASE}${path}`;
-  const res = await fetch(url, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(body),
-    signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
-  });
-  const json = await res.json();
-  if (!res.ok) {
-    throw new ApiError(res.status, 'WEBHOOK_ERROR', json.error?.message ?? 'Webhook failed');
-  }
-  return json as T;
 }

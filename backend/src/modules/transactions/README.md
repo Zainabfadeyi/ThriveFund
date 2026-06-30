@@ -8,15 +8,15 @@ Read-only view of payment records. Transactions are created by the Nomba webhook
 
 | Method | Path | Auth | Status |
 |--------|------|------|--------|
-| GET    | `/api/v1/transactions` | User | ⬜ TODO |
-| GET    | `/api/v1/transactions/export` | User | ⬜ TODO |
-| GET    | `/api/v1/transactions/:id` | User (owner of linked goal) | ⬜ TODO |
+| GET    | `/api/v1/transactions` | User | Available |
+| GET    | `/api/v1/transactions/export` | User | Available |
+| GET    | `/api/v1/transactions/:id` | User (owner of linked goal) | Available |
 
 ### Nested route (mounted inside Goals module)
 
 | Method | Path | Auth | Status |
 |--------|------|------|--------|
-| GET    | `/api/v1/goals/:id/transactions` | User (owner) | ⬜ TODO |
+| GET    | `/api/v1/goals/:id/transactions` | User (owner) | Available |
 
 ## Query Params (`GET /transactions`)
 

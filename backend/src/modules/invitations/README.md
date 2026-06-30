@@ -1,6 +1,6 @@
 # Invitations Module
 
-Sends contributor invitations via Brevo email (SMS channel placeholder).
+Sends contributor invitations via Brevo email.
 
 ## Endpoints
 

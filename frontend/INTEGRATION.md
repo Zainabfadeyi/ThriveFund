@@ -27,26 +27,30 @@ npm run dev
 
 Open http://localhost:3000
 
-## Test credentials (seed data)
+## Seed accounts
 
 | User | Email | Password | Role |
 |------|-------|----------|------|
-| Demo owner | adebayo@thrivefund.ng | DemoPass123! | user |
-| Admin | admin@thrivefund.ng | DemoPass123! | admin |
+| Organization owner | adebayo@thrivefund.ng | configured in seed data | user |
+| Admin | admin@thrivefund.ng | configured in seed data | admin |
 
 ## Environment variables
 
 **Frontend** (`.env.local`):
 ```
 NEXT_PUBLIC_API_BASE_URL=http://localhost:3001/api/v1
-NEXT_PUBLIC_WEBHOOK_BASE_URL=http://localhost:3001/api/webhooks
 ```
 
 **Backend** (`.env`):
 ```
 CORS_ORIGIN=http://localhost:3000
 FRONTEND_URL=http://localhost:3000
-PAYMENT_PROVIDER=mock_nomba
+PAYMENT_PROVIDER=nomba
+NOMBA_ACCOUNT_ID=...
+NOMBA_SUB_ACCOUNT_ID=...
+NOMBA_CLIENT_ID=...
+NOMBA_PRIVATE_KEY=...
+NOMBA_WEBHOOK_SECRET=...
 ```
 
 ## Connected frontend pages
@@ -57,7 +61,7 @@ PAYMENT_PROVIDER=mock_nomba
 | Dashboard | GET /dashboard/overview, GET /reconciliation/overview, GET /analytics/monthly-contributions |
 | Organizations | GET/POST /organizations |
 | Campaigns | GET/POST /goals, GET /organizations |
-| Campaign detail | GET /goals/:id, POST/GET /goals/:id/virtual-account, GET /goals/:id/transactions, GET /goals/:id/contributors, GET /goals/:id/share, POST /api/webhooks/mock/simulate |
+| Campaign detail | GET /goals/:id, POST/GET /goals/:id/virtual-account, GET /goals/:id/transactions, GET /goals/:id/contributors, GET /goals/:id/share |
 | Virtual Accounts | GET /virtual-accounts |
 | Transactions | GET /transactions |
 | Reconciliation | GET /reconciliation/overview, GET /reconciliation |
@@ -70,12 +74,12 @@ PAYMENT_PROVIDER=mock_nomba
 | Admin | GET /admin/overview (admin role) |
 | Public campaign | GET /public/goals/:slug, GET /public/goals/:slug/virtual-account |
 
-## Mock / pre-Nomba flows
+## Payment Flows
 
 - Campaign creation requires an organization, then sends `organization_id` to POST /goals
-- Virtual account creation → `MockNombaProvider` (POST /goals/:id/virtual-account)
-- Payment simulation → POST /api/webhooks/mock/simulate
-- Demo/local flows do not call live payment-provider APIs while `PAYMENT_PROVIDER=mock_nomba`
+- Virtual account creation → Nomba (POST /goals/:id/virtual-account)
+- Payment notifications → signed Nomba webhooks (POST /api/webhooks/nomba)
+- Campaign close-out → Nomba transfer and virtual account expiry (POST /goals/:id/close-out)
 
 ## Missing backend endpoints (frontend gaps)
 
@@ -84,13 +88,13 @@ PAYMENT_PROVIDER=mock_nomba
 - On-demand PDF report generation
 - Global invitations list (must select a campaign — uses GET /goals/:id/invitations)
 
-## Demo flow
+## Validation Flow
 
-1. Login as `adebayo@thrivefund.ng`
+1. Sign in as an organization owner
 2. Create an organization, then create a campaign under it
-3. Campaign detail → **Generate Mock Virtual Account**
-4. **Simulate Payment** (calls mock webhook)
-5. Check Dashboard, Transactions, Reconciliation
+3. Campaign detail → **Generate Virtual Account**
+4. Configure the deployed webhook URL in the Nomba dashboard
+5. Check Dashboard, Transactions, and Reconciliation after Nomba sends payment events
 
 ## Known issues
 
