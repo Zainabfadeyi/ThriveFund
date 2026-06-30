@@ -62,10 +62,13 @@ jobs:
           host: ${{ secrets.EC2_HOST }}
           username: ${{ secrets.EC2_USERNAME }}
           key: ${{ secrets.EC2_SSH_KEY }}
+          port: 22
+          debug: false
+          script_stop: true
           script: |
             set -e
 
-            APP_DIR="/home/${{ secrets.EC2_USERNAME }}/ThriveFund"
+            APP_DIR="$HOME/ThriveFund"
 
             # Pull latest code
             cd "$APP_DIR"
