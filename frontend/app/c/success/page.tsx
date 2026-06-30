@@ -31,7 +31,6 @@ export default function ContributionSuccessPage() {
             </div>
           </CardContent>
         </Card>
-        <p className="text-xs text-muted-foreground">Mock receipt — demo data only</p>
       </div>
     </div>
   );

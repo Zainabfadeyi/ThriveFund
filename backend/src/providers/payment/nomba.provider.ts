@@ -7,6 +7,8 @@ import type {
   BankTransferRequest,
   BankTransferResult,
   ExpireVirtualAccountResult,
+  Bank,
+  BankAccountLookupResult,
   PaymentProvider,
   PaymentWebhookPayload,
   VerifiedPayment,
@@ -71,6 +73,34 @@ type NombaExpireVirtualAccount = {
   expired?: boolean;
 };
 
+type NombaBanksList = {
+  results?: Array<{ code?: string; name?: string }>;
+};
+
+type NombaBankLookup = {
+  accountNumber?: string;
+  accountName?: string;
+};
+
+type NombaWebhookPayload = {
+  event_type?: string;
+  eventType?: string;
+  requestId?: string;
+  request_id?: string;
+  data?: {
+    merchant?: {
+      userId?: string;
+      walletId?: string;
+    };
+    transaction?: {
+      transactionId?: string;
+      type?: string;
+      time?: string;
+      responseCode?: string | null;
+    };
+  };
+};
+
 const DEFAULT_BASE_URLS = {
   sandbox: 'https://sandbox.nomba.com',
   production: 'https://api.nomba.com',
@@ -115,6 +145,29 @@ function transferStatus(status: string | undefined): BankTransferResult['status'
   if (['success', 'successful'].includes(normalized)) return 'successful';
   if (['processing', 'pending', 'pending_billing'].includes(normalized)) return 'processing';
   return 'failed';
+}
+
+function safeWebhookValue(value: unknown): string {
+  if (value === null || value === undefined || value === 'null') return '';
+  return String(value);
+}
+
+function buildWebhookSignaturePayload(rawBody: string, timestamp: string): string {
+  const payload = JSON.parse(rawBody) as NombaWebhookPayload;
+  const merchant = payload.data?.merchant ?? {};
+  const transaction = payload.data?.transaction ?? {};
+
+  return [
+    payload.event_type ?? payload.eventType ?? '',
+    payload.requestId ?? payload.request_id ?? '',
+    merchant.userId ?? '',
+    merchant.walletId ?? '',
+    transaction.transactionId ?? '',
+    transaction.type ?? '',
+    transaction.time ?? '',
+    safeWebhookValue(transaction.responseCode),
+    timestamp,
+  ].join(':');
 }
 
 export class NombaProvider implements PaymentProvider {
@@ -211,6 +264,7 @@ export class NombaProvider implements PaymentProvider {
         : '/v2/transfers/bank';
     const response = await this.request<NombaBankTransfer>(path, {
       method: 'POST',
+      idempotencyKey: request.merchantTxRef,
       body: {
         amount: request.amount,
         accountNumber: request.accountNumber,
@@ -247,16 +301,40 @@ export class NombaProvider implements PaymentProvider {
     };
   }
 
-  validateWebhookSignature(rawBody: string, signature: string): boolean {
-    if (!env.NOMBA_WEBHOOK_SECRET) return false;
+  async listBanks(): Promise<Bank[]> {
+    const response = await this.request<NombaBanksList>('/v1/transfers/banks', { method: 'GET' });
+    const banks = response.data?.results ?? response.results ?? [];
+    return banks
+      .filter((bank): bank is { code: string; name: string } => Boolean(bank.code && bank.name))
+      .map((bank) => ({ code: bank.code, name: bank.name }));
+  }
 
-    const expected = crypto
-      .createHmac('sha256', env.NOMBA_WEBHOOK_SECRET)
-      .update(rawBody)
-      .digest('hex');
-    const provided = signature.replace(/^sha256=/i, '').trim();
+  async lookupBankAccount(accountNumber: string, bankCode: string): Promise<BankAccountLookupResult> {
+    const response = await this.request<NombaBankLookup>('/v1/transfers/bank/lookup', {
+      method: 'POST',
+      body: { accountNumber, bankCode },
+    });
+    const data = response.data ?? response;
+    if (!data.accountNumber || !data.accountName) {
+      throw Errors.provider('Nomba bank account lookup response did not include account details');
+    }
+    return {
+      accountNumber: data.accountNumber,
+      accountName: data.accountName,
+      bankCode,
+    };
+  }
+
+  validateWebhookSignature(rawBody: string, signature: string, timestamp?: string): boolean {
+    if (!env.NOMBA_WEBHOOK_SECRET || !timestamp) return false;
 
     try {
+      const payloadToHash = buildWebhookSignaturePayload(rawBody, timestamp);
+      const expected = crypto
+        .createHmac('sha256', env.NOMBA_WEBHOOK_SECRET)
+        .update(payloadToHash)
+        .digest('base64');
+      const provided = signature.trim();
       return crypto.timingSafeEqual(Buffer.from(expected), Buffer.from(provided));
     } catch {
       return false;
@@ -279,7 +357,12 @@ export class NombaProvider implements PaymentProvider {
 
   private async request<T>(
     path: string,
-    options: { method: 'GET' | 'POST' | 'PUT' | 'DELETE'; body?: Record<string, unknown>; skipAuth?: boolean },
+    options: {
+      method: 'GET' | 'POST' | 'PUT' | 'DELETE';
+      body?: Record<string, unknown>;
+      skipAuth?: boolean;
+      idempotencyKey?: string;
+    },
   ): Promise<NombaResponse<T> & T> {
     const token = options.skipAuth ? null : await this.getAccessToken();
     const response = await fetch(`${this.baseUrl}${path}`, {
@@ -288,6 +371,7 @@ export class NombaProvider implements PaymentProvider {
         'Content-Type': 'application/json',
         accountId: this.parentAccountId,
         ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        ...(options.idempotencyKey ? { 'X-Idempotent-key': options.idempotencyKey } : {}),
       },
       body: options.body ? JSON.stringify(options.body) : undefined,
     });

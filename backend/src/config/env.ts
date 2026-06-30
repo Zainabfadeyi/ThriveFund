@@ -22,8 +22,7 @@ const schema = z.object({
   BREVO_SENDER_EMAIL: z.string().email(),
   BREVO_SENDER_NAME: z.string().default('ThriveFund'),
   FRONTEND_URL: z.string().url().default('http://localhost:3000'),
-  /** mock_nomba (default) | nomba */
-  PAYMENT_PROVIDER: z.enum(['mock_nomba', 'nomba']).default('mock_nomba'),
+  PAYMENT_PROVIDER: z.enum(['nomba']).default('nomba'),
   /** Log HTTP requests/responses to terminal (default: on in development) */
   LOG_HTTP: z.enum(['true', 'false']).optional(),
   /** basic | detailed | debug — verbosity of HTTP logs */
@@ -41,8 +40,6 @@ const schema = z.object({
   NOMBA_ACCOUNT_ID: z.string().optional(),
   NOMBA_WEBHOOK_SECRET: z.string().optional(),
 }).superRefine((data, ctx) => {
-  if (data.PAYMENT_PROVIDER !== 'nomba') return;
-
   const required: Array<[keyof typeof data, boolean]> = [
     ['NOMBA_CLIENT_ID', Boolean(data.NOMBA_CLIENT_ID)],
     ['NOMBA_PRIVATE_KEY', Boolean(data.NOMBA_PRIVATE_KEY || data.NOMBA_CLIENT_SECRET || data.NOMBA_API_KEY)],

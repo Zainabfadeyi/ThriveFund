@@ -1,4 +1,4 @@
-import { apiRequest, webhookRequest } from './client';
+import { apiRequest } from './client';
 import type {
   AdminOverview,
   AuthTokens,
@@ -20,7 +20,6 @@ import type {
   Transaction,
   User,
   VirtualAccount,
-  MockSimulateResult,
 } from './types';
 
 export const authApi = {
@@ -134,9 +133,4 @@ export const publicApi = {
 
 export const adminApi = {
   overview: () => apiRequest<AdminOverview>('/admin/overview'),
-};
-
-export const webhooksApi = {
-  simulatePayment: (body: { account_number: string; amount: number; payer_name?: string }) =>
-    webhookRequest<MockSimulateResult>('/mock/simulate', body),
 };

@@ -37,6 +37,13 @@ Base path: `/api/v1` · Auth: `Authorization: Bearer <access_token>`
 | POST | `/goals/{id}/close-out` | User | Transfer collected funds out and expire virtual account |
 | GET | `/goals/{id}/share` | User | Share link + QR metadata |
 
+## Banks
+
+| Method | Endpoint | Auth | Description |
+|--------|----------|------|-------------|
+| GET | `/banks/supported` | Public | Fetch supported Nomba transfer banks |
+| POST | `/banks/lookup` | User | Verify recipient account name before close-out transfer |
+
 ## Virtual Accounts
 
 | Method | Endpoint | Auth | Description |

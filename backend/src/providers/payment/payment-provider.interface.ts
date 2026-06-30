@@ -68,6 +68,17 @@ export interface ExpireVirtualAccountResult {
   raw?: unknown;
 }
 
+export interface Bank {
+  code: string;
+  name: string;
+}
+
+export interface BankAccountLookupResult {
+  accountNumber: string;
+  accountName: string;
+  bankCode: string;
+}
+
 export interface PaymentProvider {
   readonly name: PaymentProviderName;
 
@@ -83,8 +94,14 @@ export interface PaymentProvider {
   /** Expire a dedicated virtual account by provider reference/account number. */
   expireVirtualAccount(identifier: string): Promise<ExpireVirtualAccountResult>;
 
-  /** Validate webhook signature — returns true in mock mode when secret unset */
-  validateWebhookSignature(rawBody: string, signature: string): boolean;
+  /** Fetch supported Nigerian banks and Nomba transfer bank codes. */
+  listBanks(): Promise<Bank[]>;
+
+  /** Verify a destination bank account before initiating transfer. */
+  lookupBankAccount(accountNumber: string, bankCode: string): Promise<BankAccountLookupResult>;
+
+  /** Validate webhook signature from Nomba headers and payload */
+  validateWebhookSignature(rawBody: string, signature: string, timestamp?: string): boolean;
 
   /** Health check for readiness probe */
   healthCheck(): Promise<{ status: 'ok' | 'unavailable'; message?: string }>;

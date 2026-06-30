@@ -12,7 +12,7 @@ export const webhooksRepository = {
       `INSERT IGNORE INTO webhook_events
          (id, provider, event_type, provider_reference, payload, status, processed, received_at)
        VALUES (?, ?, ?, ?, ?, 'received', 0, NOW())`,
-      [data.id, data.provider ?? 'mock_nomba', data.event_type, data.provider_reference, data.payload],
+      [data.id, data.provider ?? 'nomba', data.event_type, data.provider_reference, data.payload],
     );
     const rows = await query('SELECT * FROM webhook_events WHERE provider_reference = ?', [data.provider_reference]);
     return rows[0] ?? null;

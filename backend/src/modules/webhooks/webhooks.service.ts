@@ -11,33 +11,65 @@ import { reconciliationService } from '../reconciliation/reconciliation.service'
 interface NombaPayload {
   event?: string;
   eventType?: string;
+  event_type?: string;
   type?: string;
-  data?: Record<string, unknown>;
+  requestId?: string;
+  request_id?: string;
+  data?: Record<string, unknown> & {
+    transaction?: Record<string, unknown>;
+    customer?: Record<string, unknown>;
+  };
 }
 
 function toProviderPayload(payload: NombaPayload): PaymentWebhookPayload {
   const data = payload.data ?? {};
-  const accountNumber = stringFrom(data.account_number, data.accountNumber, data.bankAccountNumber);
+  const transaction = data.transaction ?? {};
+  const customer = data.customer ?? {};
+  const accountNumber = stringFrom(
+    data.account_number,
+    data.accountNumber,
+    data.bankAccountNumber,
+    transaction.aliasAccountNumber,
+  );
   const providerReference = stringFrom(
     data.provider_reference,
     data.providerReference,
     data.transactionId,
     data.sessionId,
     data.id,
+    transaction.transactionId,
+    transaction.sessionId,
   );
+  const event = eventName(payload);
 
   return {
-    event: payload.event ?? payload.eventType ?? payload.type ?? 'payment.received',
+    event,
     accountNumber,
-    amount: numberFrom(data.amount, data.paymentAmount),
+    amount: numberFrom(data.amount, data.paymentAmount, transaction.transactionAmount),
     currency: stringFrom(data.currency) || 'NGN',
-    payerName: stringFrom(data.payer_name, data.payerName, data.senderName, data.customerName),
-    reference: stringFrom(data.reference, data.accountRef, data.merchantReference) || providerReference,
+    payerName: stringFrom(data.payer_name, data.payerName, data.senderName, data.customerName, customer.senderName),
+    reference:
+      stringFrom(data.reference, data.accountRef, data.merchantReference, transaction.aliasAccountReference) ||
+      providerReference,
     providerReference,
-    status: stringFrom(data.status, data.transactionStatus) || 'pending',
-    paidAt: stringFrom(data.paid_at, data.paidAt, data.createdAt, data.date) || new Date().toISOString(),
-    bankName: stringFrom(data.bank_name, data.bankName, data.sourceBankName),
+    status: statusFromEvent(event, stringFrom(data.status, data.transactionStatus)),
+    paidAt: stringFrom(data.paid_at, data.paidAt, data.createdAt, data.date, transaction.time) || new Date().toISOString(),
+    bankName: stringFrom(data.bank_name, data.bankName, data.sourceBankName, customer.bankName),
   };
+}
+
+function eventName(payload: NombaPayload): string {
+  return payload.event ?? payload.eventType ?? payload.event_type ?? payload.type ?? 'payment.received';
+}
+
+function shouldIngestPayment(event: string): boolean {
+  return ['payment_success', 'payment.received', 'payment.success'].includes(event);
+}
+
+function statusFromEvent(event: string, fallback: string): string {
+  if (event === 'payment_success') return 'successful';
+  if (event === 'payment_failed') return 'failed';
+  return fallback || 'pending';
 }
 
 function stringFrom(...values: unknown[]): string {
@@ -63,16 +95,16 @@ export const webhooksService = {
    * 2. Store raw webhook_events
    * 3. Delegate to payments → reconciliation
    */
-  async processNomba(rawBody: string, signature: string, payload: NombaPayload) {
+  async processNomba(rawBody: string, signature: string, payload: NombaPayload, timestamp?: string) {
     const provider = getPaymentProvider();
 
-    if (!provider.validateWebhookSignature(rawBody, signature)) {
+    if (!provider.validateWebhookSignature(rawBody, signature, timestamp)) {
       throw Errors.unauthorized('Invalid webhook signature');
     }
 
     const providerPayload = toProviderPayload(payload);
-    if (!providerPayload.providerReference || !providerPayload.accountNumber) {
-      throw Errors.validation('Nomba webhook payload is missing transaction or account details');
+    if (!providerPayload.providerReference) {
+      throw Errors.validation('Nomba webhook payload is missing transaction details');
     }
 
     const event = await webhooksRepository.insertEvent({
@@ -85,6 +117,15 @@ export const webhooksService = {
 
     if (!event) {
       return { received: true, duplicate: true };
+    }
+
+    if (!shouldIngestPayment(providerPayload.event)) {
+      await webhooksRepository.markStatus(providerPayload.providerReference, 'processed');
+      return { received: true, ignored: true, event: providerPayload.event };
+    }
+
+    if (!providerPayload.accountNumber) {
+      throw Errors.validation('Nomba payment webhook payload is missing virtual account details');
     }
 
     await logAudit({
@@ -127,30 +168,5 @@ export const webhooksService = {
       await webhooksRepository.markFailed(providerPayload.providerReference, message);
       throw err;
     }
-  },
-
-  /** Dev-only: simulate a mock payment webhook for demo/testing */
-  async simulateMockPayment(body: {
-    account_number: string;
-    amount: number;
-    payer_name?: string;
-    goal_reference?: string;
-  }) {
-    const providerRef = `MOCK-WH-${uuid().slice(0, 8).toUpperCase()}`;
-    const payload: NombaPayload = {
-      event: 'payment.received',
-      data: {
-        account_number: body.account_number,
-        amount: body.amount,
-        currency: 'NGN',
-        payer_name: body.payer_name ?? 'Mock Contributor',
-        reference: `REF-${Date.now()}`,
-        provider_reference: providerRef,
-        status: 'successful',
-        paid_at: new Date().toISOString(),
-        bank_name: 'First Bank',
-      },
-    };
-    return this.processNomba(JSON.stringify(payload), '', payload);
   },
 };

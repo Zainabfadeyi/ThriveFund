@@ -2,7 +2,7 @@
 
 Node.js + TypeScript + Express modular monolith for payment collection and reconciliation using **Dedicated Virtual Accounts**.
 
-> **Local/demo mode:** No live Nomba API calls are made while `PAYMENT_PROVIDER=mock_nomba` is active. Set `PAYMENT_PROVIDER=nomba` only when Nomba credentials are configured.
+Live Nomba credentials are required for payment-provider operations.
 
 ## Stack
 
@@ -22,7 +22,7 @@ Node.js + TypeScript + Express modular monolith for payment collection and recon
 backend/
 ├── database/
 │   ├── schema.sql          # Full schema
-│   └── seed.sql            # Demo seed data
+│   └── seed.sql            # Initial seed data
 ├── src/
 │   ├── app.ts              # Express app + route mounting
 │   ├── server.ts           # Entry point
@@ -32,7 +32,6 @@ backend/
 │   ├── providers/
 │   │   └── payment/        # PaymentProvider abstraction
 │   │       ├── payment-provider.interface.ts
-│   │       ├── mock-nomba.provider.ts
 │   │       └── nomba.provider.ts
 │   ├── shared/
 │   │   ├── types/enums.ts
@@ -74,7 +73,7 @@ Each module follows: `controller` · `service` · `repository` · `routes` · `v
 ```
 Contributor transfer
        ↓
-POST /api/webhooks/nomba  (or /mock/simulate in dev)
+POST /api/webhooks/nomba
        ↓
 webhooks module     → store webhook_events
        ↓
@@ -102,11 +101,8 @@ BREVO_SENDER_EMAIL=...
 FRONTEND_URL=http://localhost:3000
 CORS_ORIGIN=http://localhost:3000
 
-# Payment provider — use mock_nomba for local/demo flows
-PAYMENT_PROVIDER=mock_nomba
-NOMBA_WEBHOOK_SECRET=dev-secret   # optional for mock signature validation
-
-# Required when PAYMENT_PROVIDER=nomba
+PAYMENT_PROVIDER=nomba
+NOMBA_WEBHOOK_SECRET=...
 NOMBA_ENVIRONMENT=sandbox
 NOMBA_CLIENT_ID=...
 NOMBA_PRIVATE_KEY=...
@@ -126,19 +122,6 @@ mysql ... < database/seed.sql
 npm run dev
 ```
 
-## Mock Payment Demo
-
-1. Create goal + virtual account via API
-2. Simulate payment:
-
-```bash
-curl -X POST http://localhost:3001/api/webhooks/mock/simulate \
-  -H "Content-Type: application/json" \
-  -d '{"account_number":"9123456789","amount":50000,"payer_name":"Babatunde Adeyemi"}'
-```
-
-3. Check dashboard — goal balance and transaction should update automatically.
-
 ## API Documentation
 
 See [../docs/api/endpoints.md](../docs/api/endpoints.md)
@@ -148,5 +131,4 @@ See [../docs/api/endpoints.md](../docs/api/endpoints.md)
 1. Use `NOMBA_ENVIRONMENT=sandbox` with TEST credentials, or `production` with LIVE credentials.
 2. Authenticate with the parent account ID in `NOMBA_PARENT_ACCOUNT_ID`.
 3. Use `NOMBA_VIRTUAL_ACCOUNT_SCOPE=sub_account` for `POST /v1/accounts/virtual/{subAccountId}` so collections settle into the configured sub-account.
-4. Set `PAYMENT_PROVIDER=nomba`.
-5. Register webhook URL: `https://api.thrivefund.ng/api/webhooks/nomba`.
+4. Register webhook URL: `https://api.thrivefund.ng/api/webhooks/nomba`.

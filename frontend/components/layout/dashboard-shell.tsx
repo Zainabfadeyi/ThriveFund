@@ -22,7 +22,6 @@ import {
 } from 'lucide-react';
 import { cn, getInitials } from '@/lib/utils';
 import { useEffect, useState } from 'react';
-import { MockDataBanner } from '@/components/shared/mock-banner';
 import { useAuth } from '@/contexts/auth-context';
 import { LoadingState } from '@/components/shared/query-states';
 import { useUnreadCount } from '@/hooks/use-api';
@@ -182,7 +181,6 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
           </div>
         </header>
         <main className="flex-1 overflow-y-auto p-4 sm:p-6">
-          <div className="mb-6"><MockDataBanner /></div>
           {children}
         </main>
       </div>

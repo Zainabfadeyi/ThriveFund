@@ -6,22 +6,7 @@ Receives and validates payment webhook events. **Does not** create transactions 
 
 | Method | Path | Auth | Description |
 |--------|------|------|-------------|
-| POST | `/api/webhooks/nomba` | Signature | Receive Nomba/mock payment webhook |
-| POST | `/api/webhooks/mock/simulate` | None (dev only) | Simulate mock payment for demo |
-
-## Mock Simulation (Development)
-
-```bash
-curl -X POST http://localhost:3001/api/webhooks/mock/simulate \
-  -H "Content-Type: application/json" \
-  -d '{
-    "account_number": "<from virtual account creation>",
-    "amount": 50000,
-    "payer_name": "Babatunde Adeyemi"
-  }'
-```
-
-Disabled in `NODE_ENV=production`.
+| POST | `/api/webhooks/nomba` | Signature | Receive Nomba payment webhook |
 
 ## Processing Pipeline
 

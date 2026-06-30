@@ -16,7 +16,6 @@ import {
   reportsApi,
   transactionsApi,
   virtualAccountsApi,
-  webhooksApi,
 } from '@/lib/api/services';
 import { ApiError } from '@/lib/api/client';
 
@@ -282,20 +281,6 @@ export function usePublicVirtualAccount(slug: string) {
       }
     },
     enabled: !!slug,
-  });
-}
-
-export function useSimulatePayment() {
-  const qc = useQueryClient();
-  return useMutation({
-    mutationFn: webhooksApi.simulatePayment,
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: queryKeys.dashboard });
-      qc.invalidateQueries({ queryKey: ['transactions'] });
-      qc.invalidateQueries({ queryKey: queryKeys.reconciliationOverview });
-      qc.invalidateQueries({ queryKey: ['reconciliation'] });
-      qc.invalidateQueries({ queryKey: ['goals'] });
-    },
   });
 }
 

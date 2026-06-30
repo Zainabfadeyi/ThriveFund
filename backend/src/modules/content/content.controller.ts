@@ -1,5 +1,7 @@
 import type { Request, Response, NextFunction } from 'express';
 import { ok } from '../../lib/response';
+import { getPaymentProvider } from '../../providers/payment';
+import { Errors } from '../../lib/errors';
 
 const CATEGORIES = [
   { slug: 'community_project', label: 'Community Project' },
@@ -30,8 +32,26 @@ export const contentController = {
     try { ok(res, CATEGORIES); } catch (err) { next(err); }
   },
 
-  banks(_req: Request, res: Response, next: NextFunction) {
-    try { ok(res, BANKS); } catch (err) { next(err); }
+  async banks(_req: Request, res: Response, next: NextFunction) {
+    try {
+      const banks = await getPaymentProvider().listBanks();
+      ok(res, banks.length ? banks : BANKS);
+    } catch (err) { next(err); }
+  },
+
+  async lookupBank(req: Request, res: Response, next: NextFunction) {
+    try {
+      const { account_number, bank_code } = req.body as { account_number?: string; bank_code?: string };
+      if (!account_number || !bank_code) {
+        throw Errors.validation('account_number and bank_code are required');
+      }
+      const result = await getPaymentProvider().lookupBankAccount(account_number, bank_code);
+      ok(res, {
+        account_number: result.accountNumber,
+        account_name: result.accountName,
+        bank_code: result.bankCode,
+      });
+    } catch (err) { next(err); }
   },
 
   faqs(_req: Request, res: Response, next: NextFunction) {

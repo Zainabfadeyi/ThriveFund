@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
-import { Copy, QrCode, Share2, ArrowLeft, Zap } from 'lucide-react';
+import { Copy, QrCode, Share2, ArrowLeft } from 'lucide-react';
 import { QRCodeSVG } from 'qrcode.react';
 import { toast } from 'sonner';
 import { PageHeader } from '@/components/shared/page-header';
@@ -20,7 +20,6 @@ import {
   useGoalContributors,
   useGoalShare,
   useCreateVirtualAccount,
-  useSimulatePayment,
 } from '@/hooks/use-api';
 import { formatNaira, getInitials } from '@/lib/utils';
 import { getAuthErrorMessage } from '@/contexts/auth-context';
@@ -34,7 +33,6 @@ export default function CampaignDetailPage() {
   const { data: members } = useGoalContributors(id);
   const { data: share } = useGoalShare(id);
   const createVa = useCreateVirtualAccount();
-  const simulate = useSimulatePayment();
 
   if (isLoading) return <LoadingState />;
   if (error && !campaign) return <ErrorState message={getAuthErrorMessage(error)} onRetry={() => refetch()} />;
@@ -46,22 +44,8 @@ export default function CampaignDetailPage() {
   const handleCreateVa = async () => {
     try {
       await createVa.mutateAsync(id);
-      toast.success('Mock virtual account created');
+      toast.success('Virtual account created');
       refetchVa();
-    } catch (err) {
-      toast.error(getAuthErrorMessage(err));
-    }
-  };
-
-  const handleSimulate = async () => {
-    if (!va?.account_number) {
-      toast.error('Create a virtual account first');
-      return;
-    }
-    try {
-      await simulate.mutateAsync({ account_number: va.account_number, amount: 50000, payer_name: 'Test Payer' });
-      toast.success('Mock payment simulated and reconciled');
-      refetch();
     } catch (err) {
       toast.error(getAuthErrorMessage(err));
     }
@@ -78,9 +62,6 @@ export default function CampaignDetailPage() {
         description={`${campaign.category} · ${campaign.status}`}
         action={
           <div className="flex gap-2">
-            <Button variant="outline" onClick={handleSimulate} disabled={simulate.isPending || !va}>
-              <Zap className="h-4 w-4" /> Simulate Payment
-            </Button>
             {campaign.slug && <Button variant="outline" asChild><Link href={`/c/${campaign.slug}`}><Share2 className="h-4 w-4" /> Public</Link></Button>}
           </div>
         }
@@ -97,7 +78,7 @@ export default function CampaignDetailPage() {
 
       <div className="mb-8 grid gap-6 lg:grid-cols-2">
         <Card>
-          <CardHeader><CardTitle>Mock Virtual Account</CardTitle></CardHeader>
+          <CardHeader><CardTitle>Virtual Account</CardTitle></CardHeader>
           <CardContent className="space-y-4">
             {va ? (
               <>
@@ -113,7 +94,7 @@ export default function CampaignDetailPage() {
             ) : (
               <>
                 <p className="text-sm text-muted-foreground">No virtual account yet. Generate one so contributors have a dedicated account for this campaign.</p>
-                <Button onClick={handleCreateVa} disabled={createVa.isPending}>Generate Mock Virtual Account</Button>
+                <Button onClick={handleCreateVa} disabled={createVa.isPending}>Generate Virtual Account</Button>
               </>
             )}
           </CardContent>

@@ -697,6 +697,63 @@ Transfer collected funds to a destination bank account, expire the linked Nomba 
 
 ---
 
+## Banks
+
+### `GET /banks/supported`
+
+Fetch supported Nigerian banks from Nomba. Use `code` as `bank_code` for recipient lookup and close-out transfers.
+
+| | |
+|---|---|
+| **Auth** | Public |
+| **Provider call** | `GET /v1/transfers/banks` |
+
+**Response `200`:**
+
+```json
+{
+  "success": true,
+  "data": [
+    { "code": "058", "name": "Guaranty Trust Bank" }
+  ]
+}
+```
+
+---
+
+### `POST /banks/lookup`
+
+Verify a recipient bank account before initiating a campaign close-out transfer.
+
+| | |
+|---|---|
+| **Auth** | User |
+| **Provider call** | `POST /v1/transfers/bank/lookup` |
+
+**Request body:**
+
+```json
+{
+  "account_number": "0123456789",
+  "bank_code": "058"
+}
+```
+
+**Response `200`:**
+
+```json
+{
+  "success": true,
+  "data": {
+    "account_number": "0123456789",
+    "account_name": "Adebayo Adeyemi",
+    "bank_code": "058"
+  }
+}
+```
+
+---
+
 ### `GET /virtual-accounts`
 
 List all virtual accounts across user's goals.
@@ -1458,6 +1515,8 @@ These are **outbound calls** from the ThriveFund backend to Nomba. Document in i
 | Authenticate | `POST /v1/auth/token/issue` | Provider token cache |
 | Create virtual account for sub-account | `POST /v1/accounts/virtual/{subAccountId}` | `POST /goals/{id}/virtual-account` |
 | Fetch sub-account balance | `GET /v1/accounts/{subAccountId}/balance` | Health/readiness |
+| Fetch banks | `GET /v1/transfers/banks` | `GET /banks/supported` |
+| Bank account lookup | `POST /v1/transfers/bank/lookup` | `POST /banks/lookup`, close-out preflight |
 | Transfer to bank from sub-account | `POST /v2/transfers/bank/{subAccountId}` | `POST /goals/{id}/close-out` |
 | Expire virtual account | `DELETE /v1/accounts/virtual/{identifier}` | `POST /goals/{id}/close-out` |
 | Webhook registration | Nomba dashboard / API | Deployment setup |

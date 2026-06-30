@@ -92,12 +92,21 @@ export const goalsService = {
     }
 
     const provider = getPaymentProvider();
+    const lookup = await provider.lookupBankAccount(body.account_number, body.bank_code);
+    const providedName = body.account_name.trim().toLowerCase();
+    const lookedUpName = lookup.accountName.trim().toLowerCase();
+    if (providedName && providedName !== lookedUpName) {
+      throw Errors.validation('Destination account name does not match Nomba bank lookup', {
+        expected_account_name: lookup.accountName,
+      });
+    }
+
     const merchantTxRef = `TF-OUT-${goalId.replace(/[^a-zA-Z0-9]/g, '').slice(0, 40)}`.slice(0, 64);
     const transfer = await provider.transferToBank({
       amount,
-      accountNumber: body.account_number,
-      accountName: body.account_name,
-      bankCode: body.bank_code,
+      accountNumber: lookup.accountNumber,
+      accountName: lookup.accountName,
+      bankCode: lookup.bankCode,
       merchantTxRef,
       senderName: 'ThriveFund',
       narration: body.narration ?? `ThriveFund payout - ${goal.title as string}`,

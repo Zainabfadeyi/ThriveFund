@@ -38,7 +38,7 @@ export const virtualAccountsService = {
       actor_id: userId,
       resource_type: 'virtual_account',
       resource_id: va.id as string,
-      metadata: { goal_id: goalId, provider: result.provider, mock: result.provider === 'mock_nomba' },
+      metadata: { goal_id: goalId, provider: result.provider },
     });
 
     return va;

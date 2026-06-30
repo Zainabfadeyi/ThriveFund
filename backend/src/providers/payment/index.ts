@@ -1,5 +1,4 @@
 import { env } from '../../config/env';
-import { MockNombaProvider } from './mock-nomba.provider';
 import { NombaProvider } from './nomba.provider';
 import type { PaymentProvider } from './payment-provider.interface';
 
@@ -8,15 +7,7 @@ let instance: PaymentProvider | null = null;
 export function getPaymentProvider(): PaymentProvider {
   if (instance) return instance;
 
-  switch (env.PAYMENT_PROVIDER) {
-    case 'nomba':
-      instance = new NombaProvider();
-      break;
-    case 'mock_nomba':
-    default:
-      instance = new MockNombaProvider();
-      break;
-  }
+  instance = new NombaProvider();
 
   return instance;
 }
@@ -27,5 +18,4 @@ export function resetPaymentProvider() {
 }
 
 export * from './payment-provider.interface';
-export { MockNombaProvider } from './mock-nomba.provider';
 export { NombaProvider } from './nomba.provider';

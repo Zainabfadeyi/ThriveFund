@@ -134,7 +134,7 @@ CREATE TABLE IF NOT EXISTS virtual_accounts (
   id                 VARCHAR(36)  NOT NULL,
   goal_id            VARCHAR(36)  NOT NULL,
   organization_id    VARCHAR(36)  NULL,
-  provider           ENUM('mock_nomba','nomba') NOT NULL DEFAULT 'mock_nomba',
+  provider           ENUM('nomba') NOT NULL DEFAULT 'nomba',
   provider_account_id VARCHAR(255) NOT NULL,
   account_number     VARCHAR(20)  NOT NULL,
   account_name       VARCHAR(255) NOT NULL,
@@ -155,7 +155,7 @@ CREATE TABLE IF NOT EXISTS virtual_accounts (
 -- ─────────────────────────────────────────────────────────────────────────────
 CREATE TABLE IF NOT EXISTS webhook_events (
   id                 VARCHAR(36)  NOT NULL,
-  provider           ENUM('mock_nomba','nomba') NOT NULL DEFAULT 'mock_nomba',
+  provider           ENUM('nomba') NOT NULL DEFAULT 'nomba',
   event_type         VARCHAR(100) NOT NULL,
   provider_reference VARCHAR(255) NOT NULL,
   payload            JSON         NOT NULL,
@@ -176,7 +176,7 @@ CREATE TABLE IF NOT EXISTS webhook_events (
 CREATE TABLE IF NOT EXISTS payments (
   id                 VARCHAR(36)    NOT NULL,
   webhook_event_id   VARCHAR(36)    NULL,
-  provider           ENUM('mock_nomba','nomba') NOT NULL DEFAULT 'mock_nomba',
+  provider           ENUM('nomba') NOT NULL DEFAULT 'nomba',
   provider_reference VARCHAR(255)   NOT NULL,
   account_number     VARCHAR(20)    NOT NULL,
   amount             DECIMAL(15,2)  NOT NULL,

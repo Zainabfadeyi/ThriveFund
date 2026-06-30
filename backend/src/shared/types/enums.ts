@@ -75,7 +75,6 @@ export enum WebhookEventStatus {
 }
 
 export enum PaymentProviderName {
-  MockNomba = 'mock_nomba',
   Nomba = 'nomba',
 }
 

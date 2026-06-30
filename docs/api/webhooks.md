@@ -8,11 +8,23 @@ POST /api/webhooks/nomba
 
 | Property | Value |
 |----------|-------|
-| Auth | Nomba webhook signature (header per Nomba docs) |
+| Auth | Nomba webhook signature |
 | Content-Type | `application/json` |
 | Idempotency | Required via `provider_reference` / transaction reference |
 
-> **Important:** Consult [Nomba API documentation](https://docs.nomba.com) during integration for exact header names, signature algorithm, and payload schema.
+Expected Nomba headers:
+
+| Header | Use |
+|--------|-----|
+| `nomba-signature` / `nomba-sig-value` | Base64 HMAC-SHA256 signature |
+| `nomba-timestamp` | Timestamp included in signature payload |
+| `nomba-signature-algorithm` | Expected `HmacSHA256` |
+
+Signature verification hashes this colon-joined payload:
+
+```
+event_type:requestId:merchant.userId:merchant.walletId:transaction.transactionId:transaction.type:transaction.time:transaction.responseCode:nomba-timestamp
+```
 
 ## Processing Rules
 
@@ -23,12 +35,13 @@ Per the architecture document, every webhook must follow this pipeline:
 2. Validate signature/secret
 3. Store raw payload → WebhookEvent (processed=false)
 4. Check idempotency (provider_reference)
-5. Map to VirtualAccount
-6. Create/update Transaction
-7. Update Goal.current_amount (if successful)
-8. Mark WebhookEvent processed=true
-9. Trigger notification (optional)
-10. Return 200 OK
+5. Acknowledge non-payment payout events after storing them
+6. Map payment_success to VirtualAccount
+7. Create/update Transaction
+8. Update Goal.current_amount (if successful)
+9. Mark WebhookEvent processed=true
+10. Trigger notification (optional)
+11. Return 200 OK
 ```
 
 ### Idempotency
@@ -46,22 +59,40 @@ Per the architecture document, every webhook must follow this pipeline:
 
 Unmatched webhooks (no virtual account found) remain in `WebhookEvent` with `processed=false` for admin review via `GET /api/v1/admin/reconciliation`.
 
-## Example Payload (Illustrative)
+## Example Payload
 
 ```json
 {
-  "event": "payment.received",
+  "event_type": "payment_success",
+  "requestId": "49e11b44-909b-4f83-82b4-9a83aXXXXXX",
   "data": {
-    "account_number": "0123456789",
-    "account_name": "ThriveFund / NYSC Relocation Fund",
-    "amount": 50000,
-    "currency": "NGN",
-    "payer_name": "Babatunde Adeyemi",
-    "reference": "REF-2401230001",
-    "provider_reference": "NOMBA-TXN-abc123",
-    "status": "successful",
-    "paid_at": "2024-01-23T14:32:00Z",
-    "bank_name": "First Bank"
+    "merchant": {
+      "walletId": "693e907aad9ea59616XXXX",
+      "walletBalance": 539.4,
+      "userId": "613bb620-c8e5-45f6-9c00-XXXXXXXX"
+    },
+    "terminal": {},
+    "transaction": {
+      "aliasAccountNumber": "967913XXXX",
+      "fee": 0.6,
+      "sessionId": "1000042602061021531516XXXXXX",
+      "type": "vact_transfer",
+      "transactionId": "API-VACT_TRA-613BB-eeae578a-cdd4-459c-8bd5-XXXXXX",
+      "aliasAccountName": "ThriveFund/Campaign",
+      "responseCode": "",
+      "originatingFrom": "api",
+      "transactionAmount": 120,
+      "narration": "Transfer from JOHN GRASS",
+      "time": "2026-02-06T10:21:56Z",
+      "aliasAccountReference": "TF-goal-reference",
+      "aliasAccountType": "VIRTUAL"
+    },
+    "customer": {
+      "bankCode": "305",
+      "senderName": "JOHN GRASS",
+      "bankName": "Paycom (Opay)",
+      "accountNumber": "81689XXXX"
+    }
   }
 }
 ```

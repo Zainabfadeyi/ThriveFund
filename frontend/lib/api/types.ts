@@ -216,10 +216,3 @@ export interface GoalPerformance {
 export interface PublicGoal extends Goal {
   organization_name?: string;
 }
-
-export interface MockSimulateResult {
-  simulated: boolean;
-  received: boolean;
-  matched?: boolean;
-  duplicate?: boolean;
-}

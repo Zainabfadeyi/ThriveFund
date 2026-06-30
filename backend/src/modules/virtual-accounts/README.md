@@ -22,5 +22,4 @@ One dedicated Nomba virtual account per goal. Creation calls Nomba API; all inco
 
 - `POST /goals/:id/virtual-account` returns `409` if an active account already exists for that goal.
 - `POST /goals/:id/virtual-account` returns `502` if the Nomba API call fails.
-- The Nomba API call is currently stubbed — replace the `TODO` block in `virtual-accounts.service.ts` with the real Nomba client call.
 - Requires DB tables: `virtual_accounts`, `goals`.

@@ -18,8 +18,7 @@ import {
 import { Logo } from '@/components/shared/logo';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
-import { paymentModeCopy } from '@/lib/environment';
-import { useCases } from '@/lib/mock-data';
+import { useCases } from '@/lib/site-data';
 
 const iconMap: Record<string, React.ComponentType<{ className?: string }>> = {
   GraduationCap,
@@ -85,10 +84,9 @@ export default function LandingPage() {
                 <Link href="/signup">Start Free <ArrowRight className="h-4 w-4" /></Link>
               </Button>
               <Button size="lg" variant="outline" asChild>
-                <Link href="/dashboard">View Demo Dashboard</Link>
+                <Link href="/dashboard">Open Dashboard</Link>
               </Button>
             </div>
-            <p className="mt-5 text-xs text-slate-400">{paymentModeCopy.short}</p>
           </div>
 
           <div className="mx-auto mt-16 grid max-w-4xl gap-4 sm:grid-cols-4">
