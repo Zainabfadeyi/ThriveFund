@@ -17,7 +17,11 @@ export const contributorsService = {
     return contributorsRepository.findByGoal(goalId);
   },
 
-  async addToGoal(userId: string, goalId: string, body: { name: string; email?: string; phone_number?: string }) {
+  async addToGoal(
+    userId: string,
+    goalId: string,
+    body: { name: string; email?: string; phone_number?: string; group_label?: string; expected_amount?: number },
+  ) {
     const goal = await goalsRepository.findByIdRaw(goalId, userId);
     if (!goal) throw Errors.notFound('Goal');
 
@@ -27,8 +31,16 @@ export const contributorsService = {
       name: body.name,
       email: body.email,
       phone_number: body.phone_number,
+      group_label: body.group_label,
+      expected_amount: body.expected_amount,
       unique_reference: uuid().slice(0, 8).toUpperCase(),
     });
+  },
+
+  async getSummary(userId: string, goalId: string) {
+    const goal = await goalsRepository.findByIdRaw(goalId, userId);
+    if (!goal) throw Errors.notFound('Goal');
+    return contributorsRepository.outstandingSummary(goalId);
   },
 
   async sendInvitation(

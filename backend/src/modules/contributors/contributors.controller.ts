@@ -24,6 +24,13 @@ export const contributorsController = {
     } catch (err) { next(err); }
   },
 
+  async getSummary(req: Request, res: Response, next: NextFunction) {
+    try {
+      const data = await contributorsService.getSummary(req.user!.sub, req.params.id);
+      ok(res, data);
+    } catch (err) { next(err); }
+  },
+
   async sendInvitation(req: Request, res: Response, next: NextFunction) {
     try {
       const data = await contributorsService.sendInvitation(req.user!.sub, req.params.id, req.body);

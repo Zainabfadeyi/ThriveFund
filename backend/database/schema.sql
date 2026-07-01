@@ -258,11 +258,14 @@ CREATE TABLE IF NOT EXISTS contributors (
   name             VARCHAR(255) NOT NULL,
   email            VARCHAR(255) NULL,
   phone_number     VARCHAR(20)  NULL,
+  group_label      VARCHAR(255) NULL,
+  expected_amount  DECIMAL(15,2) NULL,
   unique_reference VARCHAR(255) NOT NULL,
   total_contributed DECIMAL(15,2) NOT NULL DEFAULT 0.00,
   created_at       DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY (id),
   UNIQUE KEY uq_contributors_reference (unique_reference),
+  UNIQUE KEY uq_contributors_goal_email (goal_id, email),
   FOREIGN KEY (goal_id) REFERENCES goals(id) ON DELETE CASCADE,
   FOREIGN KEY (organization_id) REFERENCES organizations(id) ON DELETE SET NULL
 );

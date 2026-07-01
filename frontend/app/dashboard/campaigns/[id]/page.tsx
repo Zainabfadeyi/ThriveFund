@@ -121,10 +121,10 @@ export default function CampaignDetailPage() {
           <CardHeader><CardTitle>Contributors</CardTitle></CardHeader>
           <CardContent className="p-0">
             <Table>
-              <TableHeader><TableRow><TableHead>Name</TableHead><TableHead>Paid</TableHead></TableRow></TableHeader>
+              <TableHeader><TableRow><TableHead>Name</TableHead><TableHead>Expected</TableHead><TableHead>Paid</TableHead><TableHead>Status</TableHead></TableRow></TableHeader>
               <TableBody>
                 {!members?.length ? (
-                  <TableRow><TableCell colSpan={2} className="text-center text-muted-foreground">No contributors yet</TableCell></TableRow>
+                  <TableRow><TableCell colSpan={4} className="text-center text-muted-foreground">No expected payers yet</TableCell></TableRow>
                 ) : members.map((m) => (
                   <TableRow key={m.id}>
                     <TableCell>
@@ -133,7 +133,9 @@ export default function CampaignDetailPage() {
                         {m.name}
                       </div>
                     </TableCell>
+                    <TableCell>{m.expected_amount ? formatNaira(Number(m.expected_amount)) : '—'}</TableCell>
                     <TableCell>{formatNaira(Number(m.total_contributed ?? 0))}</TableCell>
+                    <TableCell><StatusBadge status={m.payment_status ?? 'not_set'} /></TableCell>
                   </TableRow>
                 ))}
               </TableBody>

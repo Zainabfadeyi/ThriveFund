@@ -81,6 +81,7 @@ export function invitationEmail(
   inviterName: string,
   contributionLink: string,
   message?: string,
+  expectedAmount?: number,
 ) {
   const safeGoalTitle = escapeHtml(goalTitle);
   const safeInviterName = escapeHtml(inviterName);
@@ -91,6 +92,7 @@ export function invitationEmail(
         <h2 style="color:${BRAND_DARK}">ThriveFund</h2>
         <p>Hi there,</p>
         <p><strong>${safeInviterName}</strong> has invited you to contribute to: <strong>${safeGoalTitle}</strong>.</p>
+        ${expectedAmount ? `<p><strong>Amount:</strong> ₦${expectedAmount.toLocaleString()}</p>` : ''}
         ${message ? `<blockquote style="border-left:3px solid ${BRAND_GREEN};padding-left:12px;color:#555">${escapeHtml(message)}</blockquote>` : ''}
         ${button('View Contribution Details', contributionLink)}
         <p style="word-break:break-all;color:#555">${escapeHtml(contributionLink)}</p>

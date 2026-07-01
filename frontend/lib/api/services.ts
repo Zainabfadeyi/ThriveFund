@@ -20,6 +20,7 @@ import type {
   Transaction,
   User,
   VirtualAccount,
+  ContributorSummary,
 } from './types';
 
 export const authApi = {
@@ -67,10 +68,13 @@ export const goalsApi = {
   transactions: (id: string, params?: { page?: number; per_page?: number }) =>
     apiRequest<Transaction[]>(`/goals/${id}/transactions`, { params }),
   contributors: (id: string) => apiRequest<Contributor[]>(`/goals/${id}/contributors`),
-  addContributor: (id: string, body: { name: string; email?: string; phone_number?: string }) =>
+  contributorsSummary: (id: string) => apiRequest<ContributorSummary>(`/goals/${id}/contributors/summary`),
+  addContributor: (id: string, body: { name: string; email?: string; phone_number?: string; group_label?: string; expected_amount?: number }) =>
     apiRequest<Contributor>(`/goals/${id}/contributors`, { method: 'POST', body: JSON.stringify(body) }),
-  sendInvitations: (id: string, body: { recipients: { email: string; name?: string }[]; channel: 'email'; message?: string }) =>
+  sendInvitations: (id: string, body: { recipients: { email: string; name?: string; phone_number?: string; group_label?: string; expected_amount?: number }[]; channel: 'email'; message?: string }) =>
     apiRequest<Invitation[]>(`/goals/${id}/invitations`, { method: 'POST', body: JSON.stringify(body) }),
+  sendReminders: (id: string) =>
+    apiRequest<{ sent_count: number; recipients: Array<{ email: string; name: string; outstanding_amount: number }> }>(`/goals/${id}/invitations/reminders`, { method: 'POST' }),
   listInvitations: (id: string) => apiRequest<Invitation[]>(`/goals/${id}/invitations`),
 };
 

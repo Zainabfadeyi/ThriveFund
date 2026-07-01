@@ -105,6 +105,9 @@ export interface Contributor {
   name: string;
   email?: string | null;
   phone_number?: string | null;
+  group_label?: string | null;
+  expected_amount?: number | null;
+  payment_status?: string;
   goals_count?: number;
   total_contributed?: number;
   last_contribution_at?: string | null;
@@ -176,6 +179,17 @@ export interface ShareLink {
   public_url: string;
   slug: string;
   qr_code_url: string;
+}
+
+export interface ContributorSummary {
+  total_payers: number;
+  total_expected: number;
+  total_collected: number;
+  outstanding_amount: number;
+  unpaid_count: number;
+  partial_count: number;
+  paid_count: number;
+  overpaid_count: number;
 }
 
 export interface AdminOverview {

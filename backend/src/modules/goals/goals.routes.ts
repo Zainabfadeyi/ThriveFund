@@ -30,8 +30,10 @@ goalsRouter.get('/:id/transactions', transactionsController.getByGoal);
 
 // Contributors (nested)
 goalsRouter.get('/:id/contributors', contributorsController.getByGoal);
+goalsRouter.get('/:id/contributors/summary', contributorsController.getSummary);
 goalsRouter.post('/:id/contributors', contributorsController.addToGoal);
 
 // Invitations (nested — delegated to invitations module)
+goalsRouter.post('/:id/invitations/reminders', invitationsController.remindOutstanding);
 goalsRouter.post('/:id/invitations', invitationsController.sendToGoal);
 goalsRouter.get('/:id/invitations', invitationsController.listByGoal);

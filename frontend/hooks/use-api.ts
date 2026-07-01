@@ -26,6 +26,7 @@ export const queryKeys = {
   goalVa: (id: string) => ['goal-va', id] as const,
   goalTxns: (id: string) => ['goal-txns', id] as const,
   goalContributors: (id: string) => ['goal-contributors', id] as const,
+  goalContributorsSummary: (id: string) => ['goal-contributors-summary', id] as const,
   goalInvitations: (id: string) => ['goal-invitations', id] as const,
   goalShare: (id: string) => ['goal-share', id] as const,
   organizations: ['organizations'] as const,
@@ -110,6 +111,14 @@ export function useGoalContributors(id: string) {
   return useQuery({
     queryKey: queryKeys.goalContributors(id),
     queryFn: async () => (await goalsApi.contributors(id)).data,
+    enabled: !!id,
+  });
+}
+
+export function useGoalContributorsSummary(id: string) {
+  return useQuery({
+    queryKey: queryKeys.goalContributorsSummary(id),
+    queryFn: async () => (await goalsApi.contributorsSummary(id)).data,
     enabled: !!id,
   });
 }
@@ -287,11 +296,22 @@ export function usePublicVirtualAccount(slug: string) {
 export function useSendInvitations(goalId: string) {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (body: { recipients: { email: string; name?: string }[]; channel: 'email'; message?: string }) =>
+    mutationFn: (body: { recipients: { email: string; name?: string; phone_number?: string; group_label?: string; expected_amount?: number }[]; channel: 'email'; message?: string }) =>
       goalsApi.sendInvitations(goalId, body),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: queryKeys.goalInvitations(goalId) });
       qc.invalidateQueries({ queryKey: queryKeys.goalContributors(goalId) });
+      qc.invalidateQueries({ queryKey: queryKeys.goalContributorsSummary(goalId) });
+    },
+  });
+}
+
+export function useSendOutstandingReminders(goalId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: () => goalsApi.sendReminders(goalId),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: queryKeys.goalInvitations(goalId) });
     },
   });
 }
