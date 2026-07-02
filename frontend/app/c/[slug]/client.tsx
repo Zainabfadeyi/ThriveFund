@@ -11,6 +11,7 @@ import { Progress } from '@/components/ui/progress';
 import { usePublicGoal, usePublicVirtualAccount } from '@/hooks/use-api';
 import { formatNaira } from '@/lib/utils';
 import { PublicCopyButton } from './copy-button';
+import { PaymentRadar } from '@/components/campaign/payment-radar';
 
 export default function PublicCampaignClient() {
   const { slug } = useParams<{ slug: string }>();
@@ -62,6 +63,7 @@ export default function PublicCampaignClient() {
         ) : (
           <Card className="mb-6"><CardContent className="p-6 text-sm text-muted-foreground">Virtual account not yet assigned for this campaign.</CardContent></Card>
         )}
+        <PaymentRadar slug={slug} />
         <div className="flex items-center justify-center gap-2 text-sm text-muted-foreground">
           <CheckCircle2 className="h-4 w-4 text-primary" /> Secured by ThriveFund · Automatic reconciliation
         </div>

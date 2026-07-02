@@ -58,6 +58,7 @@ export const queryKeys = {
   adminReconciliation: (params?: object) => ['admin-reconciliation', params] as const,
   adminUsers: (params?: object) => ['admin-users', params] as const,
   adminWithdrawals: (params?: object) => ['admin-withdrawals', params] as const,
+  adminNombaSync: ['admin-nomba-sync'] as const,
   publicGoal: (slug: string) => ['public-goal', slug] as const,
   publicVa: (slug: string) => ['public-va', slug] as const,
   banks: ['banks'] as const,
@@ -456,6 +457,39 @@ export function useUpdateAdminGoalStatus() {
 export function useAdminExportGoal() {
   return useMutation({
     mutationFn: adminApi.exportGoalCsv,
+  });
+}
+
+export function usePublicRecentPayments(slug: string) {
+  return useQuery({
+    queryKey: ['public-payments', slug],
+    queryFn: async () => (await publicApi.getRecentPayments(slug)).data,
+    enabled: !!slug,
+    refetchInterval: 8_000,
+  });
+}
+
+export function useAdminNombaSync() {
+  return useQuery({
+    queryKey: queryKeys.adminNombaSync,
+    queryFn: async () => {
+      const [latest, runs] = await Promise.all([
+        adminApi.nombaSyncLatest(),
+        adminApi.nombaSyncRuns(),
+      ]);
+      return { latest: latest.data, runs: runs.data };
+    },
+  });
+}
+
+export function useRunNombaSync() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: () => adminApi.runNombaSync(),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: queryKeys.adminNombaSync });
+      qc.invalidateQueries({ queryKey: queryKeys.adminOverview });
+    },
   });
 }
 

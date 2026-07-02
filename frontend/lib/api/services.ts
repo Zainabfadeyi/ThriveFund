@@ -180,6 +180,11 @@ export const notificationsApi = {
 export const publicApi = {
   getGoal: (slug: string) => apiRequest<PublicGoal>(`/public/goals/${slug}`, { skipAuth: true }),
   getVirtualAccount: (slug: string) => apiRequest<VirtualAccount>(`/public/goals/${slug}/virtual-account`, { skipAuth: true }),
+  getRecentPayments: (slug: string) =>
+    apiRequest<Array<{ id: string; contributor_name: string; amount: number; status: string; paid_at?: string }>>(
+      `/public/goals/${slug}/payments`,
+      { skipAuth: true },
+    ),
 };
 
 export const adminApi = {
@@ -202,4 +207,7 @@ export const adminApi = {
   reconciliation: (params?: { status?: string; page?: number; per_page?: number }) =>
     apiRequest<ReconciliationRecord[]>('/admin/reconciliation', { params }),
   users: (params?: { page?: number; per_page?: number }) => apiRequest<AdminUser[]>('/admin/users', { params }),
+  nombaSyncLatest: () => apiRequest<Record<string, unknown>>('/admin/nomba-sync/latest'),
+  nombaSyncRuns: () => apiRequest<Record<string, unknown>[]>('/admin/nomba-sync/runs'),
+  runNombaSync: () => apiRequest<Record<string, unknown>>('/admin/nomba-sync/run', { method: 'POST' }),
 };

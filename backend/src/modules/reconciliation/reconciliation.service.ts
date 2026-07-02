@@ -9,11 +9,12 @@ import { transactionsRepository } from '../transactions/transactions.repository'
 import { goalsRepository } from '../goals/goals.repository';
 import { notificationsRepository } from '../notifications/notifications.repository';
 import { webhooksRepository } from '../webhooks/webhooks.repository';
-import { sendEmail, sendPaymentReceivedEmail, campaignCompletedEmail } from '../../lib/email';
+import { sendEmail, sendPaymentReceivedEmail, campaignCompletedEmail, paymentMismatchEmail } from '../../lib/email';
 import { env } from '../../config/env';
 import { execute } from '../../config/database';
 import { getPaymentProvider } from '../../providers/payment';
 import { broadcastRealtime } from '../../lib/realtime';
+import { withdrawalsService } from '../withdrawals/withdrawals.service';
 import type { ResolveReconciliationDto } from './reconciliation.validators';
 
 interface PaymentRecord {
@@ -26,6 +27,27 @@ interface PaymentRecord {
   reference: string;
   status: string;
   paid_at?: string;
+}
+
+type PaymentMatchType = 'exact' | 'under' | 'over';
+
+function classifyPayment(amount: number, currentAmount: number, targetAmount: number): {
+  matchType: PaymentMatchType;
+  creditAmount: number;
+  excessAmount: number;
+  remainingBefore: number;
+} {
+  const remaining = Math.max(0, targetAmount - currentAmount);
+  if (remaining <= 0) {
+    return { matchType: 'over', creditAmount: 0, excessAmount: amount, remainingBefore: 0 };
+  }
+  if (amount > remaining) {
+    return { matchType: 'over', creditAmount: remaining, excessAmount: amount - remaining, remainingBefore: remaining };
+  }
+  if (amount < remaining) {
+    return { matchType: 'under', creditAmount: amount, excessAmount: 0, remainingBefore: remaining };
+  }
+  return { matchType: 'exact', creditAmount: amount, excessAmount: 0, remainingBefore: remaining };
 }
 
 export const reconciliationService = {
@@ -46,7 +68,17 @@ export const reconciliationService = {
 
     const goalId = va.goal_id as string;
     const orgId = (va as { organization_id?: string }).organization_id ?? null;
-    const txnStatus = payment.status === 'verified' ? TransactionStatus.Successful : TransactionStatus.Pending;
+    const goalState = await goalsRepository.findCompletionState(goalId);
+    const currentAmount = Number(goalState?.current_amount ?? 0);
+    const targetAmount = Number(goalState?.target_amount ?? 0);
+    const paymentAmount = Number(payment.amount);
+    const classification = classifyPayment(paymentAmount, currentAmount, targetAmount);
+
+    const txnStatus = payment.status !== 'verified'
+      ? TransactionStatus.Pending
+      : classification.creditAmount <= 0 && classification.excessAmount > 0
+        ? TransactionStatus.PendingReview
+        : TransactionStatus.Successful;
 
     const txnId = `txn_${uuid().replace(/-/g, '').slice(0, 12)}`;
     await transactionsRepository.insert({
@@ -54,7 +86,7 @@ export const reconciliationService = {
       goal_id: goalId,
       virtual_account_id: va.id as string,
       contributor_name: payment.payer_name,
-      amount: Number(payment.amount),
+      amount: paymentAmount,
       reference: payment.reference,
       provider_reference: payment.provider_reference,
       status: txnStatus,
@@ -63,9 +95,15 @@ export const reconciliationService = {
       payment_id: payment.id,
     });
 
-    if (txnStatus === TransactionStatus.Successful) {
-      await goalsRepository.incrementAmount(goalId, Number(payment.amount));
+    if (txnStatus === TransactionStatus.Successful && classification.creditAmount > 0) {
+      await goalsRepository.incrementAmount(goalId, classification.creditAmount);
     }
+
+    const recNotes = classification.matchType === 'exact'
+      ? 'Exact payment matched'
+      : classification.matchType === 'under'
+        ? `Under-payment: ₦${paymentAmount.toLocaleString()} received, ₦${classification.remainingBefore.toLocaleString()} was remaining`
+        : `Over-payment: credited ₦${classification.creditAmount.toLocaleString()}, excess ₦${classification.excessAmount.toLocaleString()}`;
 
     const rec = await reconciliationRepository.insert({
       id: `rec_${uuid().replace(/-/g, '').slice(0, 12)}`,
@@ -75,7 +113,10 @@ export const reconciliationService = {
       goal_id: goalId,
       virtual_account_id: va.id as string,
       transaction_id: txnId,
-      status: ReconciliationStatus.Matched,
+      status: classification.matchType === 'over' && classification.excessAmount > 0
+        ? ReconciliationStatus.Pending
+        : ReconciliationStatus.Matched,
+      notes: recNotes,
     });
 
     await webhooksRepository.markStatus(payment.provider_reference, 'processed');
@@ -90,9 +131,12 @@ export const reconciliationService = {
       goal_id: goalId,
       data: {
         transaction_id: txnId,
-        amount: Number(payment.amount),
+        amount: paymentAmount,
         payer_name: payment.payer_name,
         status: txnStatus,
+        payment_match: classification.matchType,
+        excess_amount: classification.excessAmount,
+        credited_amount: classification.creditAmount,
         current_amount: completionState ? Number(completionState.current_amount) : undefined,
         target_amount: completionState ? Number(completionState.target_amount) : undefined,
         slug: completionState?.slug ?? null,
@@ -125,17 +169,38 @@ export const reconciliationService = {
         id: `ntf_${uuid().replace(/-/g, '').slice(0, 12)}`,
         user_id: goal.user_id,
         type: 'payment',
-        title: 'Payment received',
-        body: `${payment.payer_name} contributed ₦${Number(payment.amount).toLocaleString()} to ${goal.title}`,
+        title: classification.matchType === 'under' ? 'Partial payment received' : 'Payment received',
+        body: classification.matchType === 'under'
+          ? `${payment.payer_name} paid ₦${paymentAmount.toLocaleString()} (₦${classification.remainingBefore - classification.creditAmount} still outstanding) for ${goal.title}`
+          : `${payment.payer_name} contributed ₦${paymentAmount.toLocaleString()} to ${goal.title}`,
       });
 
       if (goal.email) {
         await sendPaymentReceivedEmail(goal.email as string, {
           payerName: payment.payer_name,
-          amount: Number(payment.amount),
+          amount: paymentAmount,
           goalTitle: goal.title as string,
         }).catch(() => undefined);
       }
+    }
+
+    if (goal && classification.matchType === 'over' && classification.excessAmount > 0 && goal.email) {
+      await notificationsRepository.insert({
+        id: `ntf_${uuid().replace(/-/g, '').slice(0, 12)}`,
+        user_id: goal.user_id,
+        type: 'payment',
+        title: 'Over-payment received',
+        body: `${payment.payer_name} overpaid by ₦${classification.excessAmount.toLocaleString()} on ${goal.title}. Review in reconciliation.`,
+      });
+      const { subject, html } = paymentMismatchEmail({
+        goalTitle: goal.title as string,
+        payerName: payment.payer_name,
+        amount: paymentAmount,
+        matchType: 'over',
+        excessAmount: classification.excessAmount,
+        dashboardLink: `${env.FRONTEND_URL}/dashboard/reconciliation`,
+      });
+      await sendEmail({ to: { email: goal.email as string }, subject, html }).catch(() => undefined);
     }
 
     await logAudit({
@@ -145,7 +210,14 @@ export const reconciliationService = {
       metadata: { goal_id: goalId, transaction_id: txnId, amount: payment.amount },
     });
 
-    return { matched: true, reconciliation: rec, transaction_id: txnId, completed: Boolean(completion?.completed) };
+    return {
+      matched: true,
+      reconciliation: rec,
+      transaction_id: txnId,
+      completed: Boolean(completion?.completed),
+      payment_match: classification.matchType,
+      excess_amount: classification.excessAmount,
+    };
   },
 
   async completeCampaignIfTargetReached(goalId: string, virtualAccount: Record<string, unknown>) {
@@ -204,8 +276,11 @@ export const reconciliationService = {
         current_amount: Number(updatedGoal?.current_amount ?? currentAmount),
         target_amount: targetAmount,
         virtual_account_id: virtualAccount.id,
+        slug: goal.slug ?? null,
       },
     });
+
+    await withdrawalsService.autoPayoutForCompletedGoal(goal.user_id as string, goalId).catch(() => undefined);
 
     return { completed: true, goal: updatedGoal, expiry };
   },

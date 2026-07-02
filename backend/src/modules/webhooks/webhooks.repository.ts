@@ -6,15 +6,28 @@ export const webhooksRepository = {
     provider?: string;
     event_type: string;
     provider_reference: string;
+    request_id?: string;
     payload: string;
   }) {
     await execute(
       `INSERT IGNORE INTO webhook_events
-         (id, provider, event_type, provider_reference, payload, status, processed, received_at)
-       VALUES (?, ?, ?, ?, ?, 'received', 0, NOW())`,
-      [data.id, data.provider ?? 'nomba', data.event_type, data.provider_reference, data.payload],
+         (id, provider, event_type, provider_reference, request_id, payload, status, processed, received_at)
+       VALUES (?, ?, ?, ?, ?, ?, 'received', 0, NOW())`,
+      [
+        data.id,
+        data.provider ?? 'nomba',
+        data.event_type,
+        data.provider_reference,
+        data.request_id ?? null,
+        data.payload,
+      ],
     );
     const rows = await query('SELECT * FROM webhook_events WHERE provider_reference = ?', [data.provider_reference]);
+    return rows[0] ?? null;
+  },
+
+  async findByRequestId(requestId: string) {
+    const rows = await query('SELECT * FROM webhook_events WHERE request_id = ? LIMIT 1', [requestId]);
     return rows[0] ?? null;
   },
 

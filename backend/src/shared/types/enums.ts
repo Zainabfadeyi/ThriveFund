@@ -98,4 +98,6 @@ export enum AuditAction {
   WithdrawalCreated = 'withdrawal.created',
   WithdrawalCompleted = 'withdrawal.completed',
   WithdrawalFailed = 'withdrawal.failed',
+  NombaSyncCompleted = 'nomba.sync_completed',
+  AutoPayoutInitiated = 'auto_payout.initiated',
 }

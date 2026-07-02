@@ -42,6 +42,7 @@ test('virtualAccountsService creates a provider account and persists organizatio
     lookupBankAccount: async () => { throw new Error('unused'); },
     validateWebhookSignature: () => true,
     healthCheck: async () => ({ status: 'ok' }),
+    listBankTransactions: async () => ({ rows: [] }),
   });
   audit.logAudit = async () => undefined;
 

@@ -175,6 +175,7 @@ CREATE TABLE IF NOT EXISTS webhook_events (
   provider           ENUM('nomba') NOT NULL DEFAULT 'nomba',
   event_type         VARCHAR(100) NOT NULL,
   provider_reference VARCHAR(255) NOT NULL,
+  request_id         VARCHAR(255) NULL,
   payload            JSON         NOT NULL,
   status             ENUM('received','processed','failed','duplicate') NOT NULL DEFAULT 'received',
   processed          TINYINT(1)   NOT NULL DEFAULT 0,
@@ -183,6 +184,7 @@ CREATE TABLE IF NOT EXISTS webhook_events (
   received_at        DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY (id),
   UNIQUE KEY uq_webhook_events_provider_ref (provider_reference),
+  UNIQUE KEY uq_webhook_events_request_id (request_id),
   INDEX idx_webhook_events_status (status),
   INDEX idx_webhook_events_processed (processed)
 );
@@ -395,6 +397,22 @@ CREATE TABLE IF NOT EXISTS audit_logs (
   INDEX idx_audit_action (action),
   INDEX idx_audit_actor (actor_id),
   INDEX idx_audit_created (created_at)
+);
+
+CREATE TABLE IF NOT EXISTS nomba_sync_runs (
+  id              VARCHAR(36)   NOT NULL,
+  status          ENUM('running','completed','failed') NOT NULL DEFAULT 'running',
+  started_at      DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  completed_at    DATETIME      NULL,
+  nomba_count     INT           NOT NULL DEFAULT 0,
+  ledger_count    INT           NOT NULL DEFAULT 0,
+  matched_count   INT           NOT NULL DEFAULT 0,
+  unmatched_count INT           NOT NULL DEFAULT 0,
+  drift_ngn       DECIMAL(15,2) NOT NULL DEFAULT 0.00,
+  details         JSON          NULL,
+  error_message   TEXT          NULL,
+  PRIMARY KEY (id),
+  INDEX idx_nomba_sync_started (started_at)
 );
 
 SET FOREIGN_KEY_CHECKS = 1;

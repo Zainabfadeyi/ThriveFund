@@ -88,9 +88,9 @@ export default function AdminOverviewPage() {
           <Link
             key={href}
             href={href}
-            className="flex items-center gap-3 rounded-xl border bg-white p-4 shadow-sm transition hover:border-amber-300 hover:shadow-md"
+            className="flex items-center gap-3 rounded-xl border bg-white p-4 shadow-sm transition hover:border-primary/40 hover:shadow-md"
           >
-            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-amber-100 text-amber-700">
+            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10 text-primary">
               <Icon size={20} />
             </div>
             <span className="font-medium text-slate-800">{label}</span>

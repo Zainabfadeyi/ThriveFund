@@ -16,4 +16,11 @@ export const publicController = {
       ok(res, data);
     } catch (err) { next(err); }
   },
+
+  async getRecentPayments(req: Request, res: Response, next: NextFunction) {
+    try {
+      const data = await publicService.getRecentPaymentsBySlug(req.params.slug);
+      ok(res, data);
+    } catch (err) { next(err); }
+  },
 };

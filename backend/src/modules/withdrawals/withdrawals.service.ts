@@ -82,11 +82,15 @@ export const withdrawalsService = {
 
     try {
       const merchantTxRef = `TF-WD-${withdrawalId.replace(/[^a-zA-Z0-9]/g, '').slice(0, 48)}`.slice(0, 64);
+      const lookup = await provider.lookupBankAccount(
+        account.account_number as string,
+        account.bank_code as string,
+      );
       const transfer = await provider.transferToBank({
         amount,
-        accountNumber: account.account_number as string,
-        accountName: account.account_name as string,
-        bankCode: account.bank_code as string,
+        accountNumber: lookup.accountNumber,
+        accountName: lookup.accountName,
+        bankCode: lookup.bankCode,
         merchantTxRef,
         senderName: 'ThriveFund',
         narration: body.narration ?? `ThriveFund withdrawal - ${goal.title as string}`,
@@ -174,6 +178,38 @@ export const withdrawalsService = {
     }
 
     return updated;
+  },
+
+  async autoPayoutForCompletedGoal(userId: string, goalId: string) {
+    const account = await payoutAccountsRepository.findDefaultForUser(userId);
+    if (!account) {
+      await logAudit({
+        action: AuditAction.AutoPayoutInitiated,
+        actor_id: userId,
+        resource_type: 'goal',
+        resource_id: goalId,
+        metadata: { skipped: true, reason: 'no_default_payout_account' },
+      });
+      return null;
+    }
+
+    const result = await this.createForGoal(userId, goalId, {
+      payout_account_id: account.id as string,
+      narration: 'ThriveFund auto-payout on campaign completion',
+    });
+
+    await logAudit({
+      action: AuditAction.AutoPayoutInitiated,
+      actor_id: userId,
+      resource_type: 'goal',
+      resource_id: goalId,
+      metadata: {
+        withdrawal_id: (result.withdrawal as { id?: string })?.id,
+        amount: (result.withdrawal as { amount?: number })?.amount,
+      },
+    });
+
+    return result;
   },
 
   async reconcileFromWebhook(input: {

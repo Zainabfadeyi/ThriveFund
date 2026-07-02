@@ -209,6 +209,34 @@ export function campaignCompletedEmail(goalTitle: string, amount: number, dashbo
   };
 }
 
+export function paymentMismatchEmail(data: {
+  goalTitle: string;
+  payerName: string;
+  amount: number;
+  matchType: 'under' | 'over';
+  excessAmount?: number;
+  dashboardLink: string;
+}) {
+  const label = data.matchType === 'over' ? 'Over-payment detected' : 'Under-payment received';
+  return {
+    subject: `${label}: ${data.goalTitle}`,
+    html: appLayout(
+      label,
+      `
+        <p style="margin:0 0 12px">${escapeHtml(data.payerName)} sent ${money(data.amount)} to ${escapeHtml(data.goalTitle)}.</p>
+        ${detailsTable([
+          ['Campaign', data.goalTitle],
+          ['Payer', data.payerName],
+          ['Amount', money(data.amount)],
+          ...(data.excessAmount ? [['Excess amount', money(data.excessAmount)]] as [string, string][] : []),
+          ['Match type', data.matchType],
+        ])}
+        ${button('Review in dashboard', data.dashboardLink)}
+      `,
+    ),
+  };
+}
+
 export function webhookFailureEmail(eventType: string, reference: string, adminLink: string) {
   return {
     subject: `Webhook processing failed: ${eventType}`,

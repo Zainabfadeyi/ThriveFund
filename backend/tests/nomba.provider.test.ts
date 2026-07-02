@@ -109,7 +109,9 @@ test('NombaProvider treats provider-level validation errors as provider failures
 });
 
 test('NombaProvider maps SUCCESS transfer responses as successful', async () => {
-  (globalThis as unknown as { fetch: typeof fetch }).fetch = async (url) => {
+  const calls: Array<{ url: string; init: RequestInit }> = [];
+  (globalThis as unknown as { fetch: typeof fetch }).fetch = async (url, init) => {
+    calls.push({ url: String(url), init: init ?? {} });
     if (String(url).endsWith('/v1/auth/token/issue')) {
       return jsonResponse({ data: { access_token: 'token_123' } });
     }
@@ -120,8 +122,8 @@ test('NombaProvider maps SUCCESS transfer responses as successful', async () => 
       data: {
         id: 'API-TRANSFER-123',
         status: 'SUCCESS',
-        amount: 5000,
-        fee: 50,
+        amount: 500000,
+        fee: 5000,
       },
     });
   };
@@ -139,6 +141,11 @@ test('NombaProvider maps SUCCESS transfer responses as successful', async () => 
 
   assert.equal(result.status, 'successful');
   assert.equal(result.providerReference, 'API-TRANSFER-123');
+  assert.equal(result.amount, 5000);
+  const transferCall = calls.find((call) => call.url.includes('/v2/transfers/bank'));
+  assert.ok(transferCall);
+  const body = JSON.parse(String(transferCall.init.body));
+  assert.equal(body.amount, 500000);
 });
 
 test('NombaProvider maps 201 PENDING_BILLING transfer responses as processing', async () => {

@@ -94,6 +94,27 @@ export const transactionsRepository = {
     );
   },
 
+  async findSuccessfulSince(fromIso: string) {
+    return query(
+      `SELECT id, goal_id, provider_reference, amount, paid_at
+       FROM transactions
+       WHERE status = 'successful' AND paid_at >= ?
+       ORDER BY paid_at DESC`,
+      [fromIso],
+    );
+  },
+
+  async findRecentByGoal(goalId: string, limit = 10) {
+    return query(
+      `SELECT id, contributor_name, amount, status, paid_at, reference
+       FROM transactions
+       WHERE goal_id = ?
+       ORDER BY paid_at DESC
+       LIMIT ?`,
+      [goalId, limit],
+    );
+  },
+
   async findForExport(userId: string, filters: { goal_id?: string; from?: string; to?: string; status?: string }) {
     const conditions = ['g.user_id = ?'];
     const values: unknown[] = [userId];

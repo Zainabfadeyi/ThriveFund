@@ -130,16 +130,25 @@ export const webhooksService = {
       throw Errors.validation('Nomba webhook payload is missing transaction details');
     }
 
+    const requestId = stringFrom(payload.requestId, payload.request_id);
+    if (requestId) {
+      const existingByRequest = await webhooksRepository.findByRequestId(requestId);
+      if (existingByRequest) {
+        return { received: true, duplicate: true, reason: 'request_id' };
+      }
+    }
+
     const event = await webhooksRepository.insertEvent({
       id: `wh_${uuid().replace(/-/g, '').slice(0, 12)}`,
       provider: provider.name,
       event_type: providerPayload.event,
       provider_reference: providerPayload.providerReference,
+      request_id: requestId || undefined,
       payload: rawBody,
     });
 
     if (!event) {
-      return { received: true, duplicate: true };
+      return { received: true, duplicate: true, reason: 'provider_reference' };
     }
 
     if (!shouldIngestPayment(providerPayload.event)) {

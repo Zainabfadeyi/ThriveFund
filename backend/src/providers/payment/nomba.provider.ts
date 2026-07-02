@@ -1,6 +1,8 @@
 import crypto from 'crypto';
 import { env } from '../../config/env';
 import { Errors } from '../../lib/errors';
+import { fromKobo, normalizeNombaTransactionAmount, toKobo } from '../../lib/money';
+import { logNombaCall } from '../../lib/nomba-logger';
 import { PaymentProviderName } from '../../shared/types/enums';
 import type {
   CreateVirtualAccountRequest,
@@ -9,6 +11,7 @@ import type {
   ExpireVirtualAccountResult,
   Bank,
   BankAccountLookupResult,
+  NombaBankTransaction,
   PaymentProvider,
   PaymentWebhookPayload,
   VerifiedPayment,
@@ -95,11 +98,28 @@ type NombaBanksList = {
   results?: NombaBank[];
 };
 
+type NombaBankTransactionRow = {
+  amount?: number | string;
+  status?: string;
+  transactionType?: string;
+  timeUpdated?: string;
+  meta?: {
+    transactionId?: string;
+    merchantTxRef?: string;
+    transactionAmount?: number | string;
+  };
+};
+
 type NombaBankLookup = {
   accountNumber?: string;
   accountName?: string;
   account_number?: string;
   account_name?: string;
+};
+
+type NombaBankTransactionsList = {
+  results?: NombaBankTransactionRow[];
+  cursor?: string;
 };
 
 function unwrapNombaBanks(payload: unknown): NombaBank[] {
@@ -286,6 +306,7 @@ export class NombaProvider implements PaymentProvider {
 
     const response = await this.request<NombaVirtualAccount>(path, {
       method: 'POST',
+      idempotencyKey: accountRef,
       body,
     });
 
@@ -368,12 +389,15 @@ export class NombaProvider implements PaymentProvider {
       env.NOMBA_VIRTUAL_ACCOUNT_SCOPE === 'sub_account'
         ? `/v2/transfers/bank/${encodeURIComponent(requiredEnv('NOMBA_SUB_ACCOUNT_ID', this.subAccountId))}`
         : '/v2/transfers/bank';
+    const amountKobo = toKobo(request.amount);
     const response = await this.request<NombaBankTransfer>(path, {
       method: 'POST',
       idempotencyKey: request.merchantTxRef,
       acceptCodes: ['201'],
+      merchantTxRef: request.merchantTxRef,
+      amountKobo,
       body: {
-        amount: request.amount,
+        amount: amountKobo,
         accountNumber: request.accountNumber,
         accountName: request.accountName,
         bankCode: request.bankCode,
@@ -388,8 +412,8 @@ export class NombaProvider implements PaymentProvider {
       provider: PaymentProviderName.Nomba,
       providerReference: transfer.id ?? request.merchantTxRef,
       status: resolveTransferStatus(response),
-      amount: Number(transfer.amount ?? request.amount),
-      fee: transfer.fee,
+      amount: fromKobo(Number(transfer.amount ?? amountKobo)),
+      fee: transfer.fee != null ? fromKobo(Number(transfer.fee)) : undefined,
       raw: response,
     };
   }
@@ -450,6 +474,31 @@ export class NombaProvider implements PaymentProvider {
     };
   }
 
+  async listBankTransactions(query: { dateFrom?: string; limit?: number; cursor?: string } = {}) {
+    const params = new URLSearchParams();
+    if (query.dateFrom) params.set('dateFrom', query.dateFrom);
+    if (query.limit) params.set('limit', String(query.limit));
+    if (query.cursor) params.set('cursor', query.cursor);
+    const qs = params.toString();
+    const path = `/v1/transactions/bank${qs ? `?${qs}` : ''}`;
+
+    const response = await this.request<NombaBankTransactionsList>(path, { method: 'GET' });
+    const data = response.data ?? response;
+    const rows = (data.results ?? []).map((row): NombaBankTransaction => {
+      const rawAmount = Number(row.meta?.transactionAmount ?? row.amount ?? 0);
+      return {
+        providerReference: row.meta?.transactionId ?? '',
+        merchantTxRef: row.meta?.merchantTxRef || undefined,
+        amountNaira: normalizeNombaTransactionAmount(rawAmount),
+        status: row.status ?? 'UNKNOWN',
+        transactionType: row.transactionType,
+        paidAt: row.timeUpdated,
+      };
+    }).filter((row) => row.providerReference);
+
+    return { rows, cursor: data.cursor };
+  }
+
   validateWebhookSignature(rawBody: string, signature: string, timestamp?: string): boolean {
     if (!env.NOMBA_WEBHOOK_SECRET || !timestamp) return false;
 
@@ -488,19 +537,35 @@ export class NombaProvider implements PaymentProvider {
       skipAuth?: boolean;
       idempotencyKey?: string;
       acceptCodes?: string[];
+      merchantTxRef?: string;
+      amountKobo?: number;
     },
   ): Promise<NombaResponse<T> & T> {
+    const started = Date.now();
     const token = options.skipAuth ? null : await this.getAccessToken();
-    const response = await fetch(`${this.baseUrl}${path}`, {
-      method: options.method,
-      headers: {
-        'Content-Type': 'application/json',
-        accountId: this.parentAccountId,
-        ...(token ? { Authorization: `Bearer ${token}` } : {}),
-        ...(options.idempotencyKey ? { 'X-Idempotent-key': options.idempotencyKey } : {}),
-      },
-      body: options.body ? JSON.stringify(options.body) : undefined,
-    });
+    let response: Response;
+    try {
+      response = await fetch(`${this.baseUrl}${path}`, {
+        method: options.method,
+        headers: {
+          'Content-Type': 'application/json',
+          accountId: this.parentAccountId,
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+          ...(options.idempotencyKey ? { 'X-Idempotent-key': options.idempotencyKey } : {}),
+        },
+        body: options.body ? JSON.stringify(options.body) : undefined,
+      });
+    } catch (err) {
+      logNombaCall({
+        method: options.method,
+        path,
+        merchantTxRef: options.merchantTxRef ?? options.idempotencyKey,
+        amountKobo: options.amountKobo,
+        latencyMs: Date.now() - started,
+        error: err instanceof Error ? err.message : 'Network error',
+      });
+      throw err;
+    }
 
     const text = await response.text();
     let json: NombaResponse<T> & T;
@@ -520,6 +585,16 @@ export class NombaProvider implements PaymentProvider {
     if (!response.ok) {
       const providerMessage = nombaMessage(json);
       const message = providerMessage ?? `Nomba request failed with HTTP ${response.status}`;
+      logNombaCall({
+        method: options.method,
+        path,
+        merchantTxRef: options.merchantTxRef ?? options.idempotencyKey,
+        amountKobo: options.amountKobo,
+        status: response.status,
+        providerCode: nombaCode(json),
+        latencyMs: Date.now() - started,
+        error: message,
+      });
       throw Errors.provider(message, {
         provider: PaymentProviderName.Nomba,
         environment: env.NOMBA_ENVIRONMENT,
@@ -538,6 +613,16 @@ export class NombaProvider implements PaymentProvider {
     const acceptedCode = options.acceptCodes?.includes(nombaCode(json) ?? '');
     if (succeeded === false && !acceptedCode) {
       const providerMessage = nombaMessage(json);
+      logNombaCall({
+        method: options.method,
+        path,
+        merchantTxRef: options.merchantTxRef ?? options.idempotencyKey,
+        amountKobo: options.amountKobo,
+        status: response.status,
+        providerCode: nombaCode(json),
+        latencyMs: Date.now() - started,
+        error: providerMessage ?? 'Nomba request was not successful',
+      });
       throw Errors.provider(providerMessage ?? 'Nomba request was not successful', {
         provider: PaymentProviderName.Nomba,
         environment: env.NOMBA_ENVIRONMENT,
@@ -553,6 +638,16 @@ export class NombaProvider implements PaymentProvider {
         dataKeys: responseKeys(json.data),
       } satisfies NombaErrorDetails);
     }
+
+    logNombaCall({
+      method: options.method,
+      path,
+      merchantTxRef: options.merchantTxRef ?? options.idempotencyKey,
+      amountKobo: options.amountKobo,
+      status: response.status,
+      providerCode: nombaCode(json),
+      latencyMs: Date.now() - started,
+    });
 
     return json;
   }

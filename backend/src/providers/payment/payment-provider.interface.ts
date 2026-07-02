@@ -79,6 +79,15 @@ export interface BankAccountLookupResult {
   bankCode: string;
 }
 
+export interface NombaBankTransaction {
+  providerReference: string;
+  merchantTxRef?: string;
+  amountNaira: number;
+  status: string;
+  transactionType?: string;
+  paidAt?: string;
+}
+
 export interface PaymentProvider {
   readonly name: PaymentProviderName;
 
@@ -99,6 +108,12 @@ export interface PaymentProvider {
 
   /** Verify a destination bank account before initiating transfer. */
   lookupBankAccount(accountNumber: string, bankCode: string): Promise<BankAccountLookupResult>;
+
+  /** Fetch recent bank transactions from Nomba for ledger reconciliation. */
+  listBankTransactions(query?: { dateFrom?: string; limit?: number; cursor?: string }): Promise<{
+    rows: NombaBankTransaction[];
+    cursor?: string;
+  }>;
 
   /** Validate webhook signature from Nomba headers and payload */
   validateWebhookSignature(rawBody: string, signature: string, timestamp?: string): boolean;
