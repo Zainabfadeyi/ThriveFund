@@ -3,6 +3,12 @@ import { Errors } from '../../lib/errors';
 import { logAudit } from '../../lib/audit';
 import { buildContributionUrl } from '../../lib/frontend-url';
 import { getPaymentProvider } from '../../providers/payment';
+import {
+  buildCampaignReport,
+  campaignReportCsv,
+  campaignReportFilename,
+  campaignReportPdf,
+} from '../../lib/campaign-report';
 import { AuditAction } from '../../shared/types/enums';
 import { goalsRepository } from './goals.repository';
 import { transactionsRepository } from '../transactions/transactions.repository';
@@ -156,46 +162,30 @@ export const goalsService = {
     };
   },
 
-  async exportCampaign(userId: string, goalId: string) {
+  async exportCampaign(userId: string, goalId: string, format: 'csv' | 'pdf' = 'csv') {
     const pack = await goalsRepository.exportPack(goalId, userId);
     if (!pack) throw Errors.notFound('Goal');
-    return campaignExportCsv(pack);
+    return this.renderCampaignReport(pack, format);
   },
 
-  async exportCampaignAdmin(goalId: string) {
+  async exportCampaignAdmin(goalId: string, format: 'csv' | 'pdf' = 'csv') {
     const pack = await goalsRepository.exportPack(goalId);
     if (!pack) throw Errors.notFound('Goal');
-    return campaignExportCsv(pack);
+    return this.renderCampaignReport(pack, format);
+  },
+
+  async renderCampaignReport(
+    pack: {
+      goal: Record<string, unknown>;
+      transactions: Record<string, unknown>[];
+    },
+    format: 'csv' | 'pdf',
+  ) {
+    const report = buildCampaignReport(pack);
+    const filename = campaignReportFilename(report, format);
+    if (format === 'pdf') {
+      return { filename, contentType: 'application/pdf', body: await campaignReportPdf(report) };
+    }
+    return { filename, contentType: 'text/csv; charset=utf-8', body: campaignReportCsv(report) };
   },
 };
-
-function csvEscape(value: unknown) {
-  return `"${String(value ?? '').replace(/"/g, '""')}"`;
-}
-
-function csvSection(title: string, rows: Record<string, unknown>[]) {
-  if (!rows.length) return `${title}\n(no rows)\n`;
-  const headers = Object.keys(rows[0]);
-  return [
-    title,
-    headers.map(csvEscape).join(','),
-    ...rows.map((row) => headers.map((header) => csvEscape(row[header])).join(',')),
-    '',
-  ].join('\n');
-}
-
-function campaignExportCsv(pack: {
-  goal: Record<string, unknown>;
-  transactions: Record<string, unknown>[];
-  contributors: Record<string, unknown>[];
-  virtual_accounts: Record<string, unknown>[];
-  reconciliation: Record<string, unknown>[];
-}) {
-  return [
-    csvSection('Campaign Summary', [pack.goal]),
-    csvSection('Virtual Accounts', pack.virtual_accounts),
-    csvSection('Transactions', pack.transactions),
-    csvSection('Contributors', pack.contributors),
-    csvSection('Reconciliation', pack.reconciliation),
-  ].join('\n');
-}

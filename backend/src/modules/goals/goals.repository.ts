@@ -173,7 +173,7 @@ export const goalsRepository = {
 
   async findCompletionState(goalId: string): Promise<GoalRow | null> {
     const rows = await query<GoalRow>(
-      `SELECT g.id, g.user_id, g.organization_id, g.title, g.current_amount, g.target_amount, g.status, u.email
+      `SELECT g.id, g.user_id, g.organization_id, g.title, g.slug, g.current_amount, g.target_amount, g.status, u.email
        FROM goals g
        JOIN users u ON u.id = g.user_id
        WHERE g.id = ?`,
@@ -217,8 +217,25 @@ export const goalsRepository = {
 
     const [transactions, contributors, virtualAccounts, reconciliation] = await Promise.all([
       query(
-        `SELECT reference, provider_reference, contributor_name, amount, status, paid_at, created_at
-         FROM transactions WHERE goal_id = ? ORDER BY paid_at DESC`,
+        `SELECT
+           t.id AS transaction_id,
+           t.contributor_name AS payer_name,
+           t.amount,
+           t.status AS payment_status,
+           t.paid_at AS date_paid,
+           t.reference AS transfer_reference,
+           t.provider_reference,
+           va.account_number AS virtual_account_number,
+           va.bank_name,
+           rr.status AS reconciliation_status,
+           p.status AS verification_status,
+           t.created_at
+         FROM transactions t
+         LEFT JOIN virtual_accounts va ON va.id = t.virtual_account_id
+         LEFT JOIN payments p ON p.id = t.payment_id
+         LEFT JOIN reconciliation_records rr ON rr.id = t.reconciliation_id
+         WHERE t.goal_id = ?
+         ORDER BY COALESCE(t.paid_at, t.created_at) DESC`,
         [goalId],
       ),
       query(

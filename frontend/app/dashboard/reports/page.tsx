@@ -1,5 +1,6 @@
 'use client';
 
+import { useState } from 'react';
 import { Download } from 'lucide-react';
 import { toast } from 'sonner';
 import { MonthlyChart } from '@/components/charts/monthly-chart';
@@ -7,28 +8,53 @@ import { PageHeader } from '@/components/shared/page-header';
 import { LoadingState, ErrorState } from '@/components/shared/query-states';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { useFinancialSummary, useAnalyticsMonthly, useAnalyticsGoalPerformance } from '@/hooks/use-api';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { useFinancialSummary, useAnalyticsMonthly, useAnalyticsGoalPerformance, useGoals } from '@/hooks/use-api';
 import { reportsApi } from '@/lib/api/services';
-import { formatNaira } from '@/lib/utils';
+import { downloadFile, formatNaira } from '@/lib/utils';
 import { getAuthErrorMessage } from '@/contexts/auth-context';
 
 export default function ReportsPage() {
   const { data: summary, isLoading, error, refetch } = useFinancialSummary();
   const { data: monthly } = useAnalyticsMonthly();
   const { data: performance } = useAnalyticsGoalPerformance();
+  const { data: goalsData } = useGoals();
+  const campaigns = goalsData?.data ?? [];
+  const [selectedCampaignId, setSelectedCampaignId] = useState('');
+  const [exporting, setExporting] = useState<'csv' | 'pdf' | null>(null);
 
   const downloadCsv = async () => {
     try {
       const { data: csv } = await reportsApi.transactionsExport();
-      const blob = new Blob([csv], { type: 'text/csv' });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = 'thrivefund-transactions.csv';
-      a.click();
+      downloadFile(csv, 'thrivefund-transactions.csv');
       toast.success('Export downloaded');
     } catch (err) {
       toast.error(getAuthErrorMessage(err));
+    }
+  };
+
+  const downloadCampaignReport = async (format: 'csv' | 'pdf') => {
+    if (!selectedCampaignId) {
+      toast.error('Select a campaign first');
+      return;
+    }
+
+    setExporting(format);
+    try {
+      const { data } = await reportsApi.campaignExport(selectedCampaignId, format);
+      const campaign = campaigns.find((item) => item.id === selectedCampaignId);
+      const slug = campaign?.slug ?? selectedCampaignId;
+      const filename = `campaign-${slug}-report.${format}`;
+      if (data instanceof Blob) {
+        downloadFile(data, filename);
+      } else {
+        downloadFile(data, filename, format === 'pdf' ? 'application/pdf' : 'text/csv;charset=utf-8');
+      }
+      toast.success(`${format.toUpperCase()} report downloaded`);
+    } catch (err) {
+      toast.error(getAuthErrorMessage(err));
+    } finally {
+      setExporting(null);
     }
   };
 
@@ -37,7 +63,42 @@ export default function ReportsPage() {
 
   return (
     <div>
-      <PageHeader title="Reports" description="Payment summaries and campaign performance" action={<Button variant="outline" onClick={downloadCsv}><Download className="h-4 w-4" /> Export Transactions CSV</Button>} />
+      <PageHeader
+        title="Reports"
+        description="Payment summaries and per-campaign reconciliation reports"
+        action={
+          <Button variant="outline" onClick={downloadCsv}>
+            <Download className="h-4 w-4" /> Export All Transactions CSV
+          </Button>
+        }
+      />
+
+      <Card className="mb-8">
+        <CardHeader><CardTitle>Campaign Payment Report</CardTitle></CardHeader>
+        <CardContent className="flex flex-col gap-4 sm:flex-row sm:items-end">
+          <div className="flex-1">
+            <p className="mb-2 text-sm text-muted-foreground">
+              Download payer name, amount, date paid, references, and reconciliation status for one campaign.
+            </p>
+            <Select value={selectedCampaignId} onValueChange={setSelectedCampaignId}>
+              <SelectTrigger><SelectValue placeholder="Select campaign" /></SelectTrigger>
+              <SelectContent>
+                {campaigns.map((campaign) => (
+                  <SelectItem key={campaign.id} value={campaign.id}>{campaign.title}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="flex gap-2">
+            <Button variant="outline" onClick={() => downloadCampaignReport('csv')} disabled={!selectedCampaignId || exporting !== null}>
+              <Download className="h-4 w-4" /> CSV
+            </Button>
+            <Button variant="outline" onClick={() => downloadCampaignReport('pdf')} disabled={!selectedCampaignId || exporting !== null}>
+              <Download className="h-4 w-4" /> PDF
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
 
       {summary && (
         <div className="mb-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">

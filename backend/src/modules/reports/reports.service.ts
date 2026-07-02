@@ -1,4 +1,5 @@
 import { reportsRepository } from './reports.repository';
+import { goalsService } from '../goals/goals.service';
 import { parsePagination, buildMeta } from '../../shared/utils/pagination';
 
 function toCsv(rows: Record<string, unknown>[]): string {
@@ -14,6 +15,10 @@ function toCsv(rows: Record<string, unknown>[]): string {
 export const reportsService = {
   async financialSummary(userId: string) {
     return reportsRepository.financialSummary(userId);
+  },
+
+  async campaignExport(userId: string, goalId: string, format: 'csv' | 'pdf' = 'csv') {
+    return goalsService.exportCampaign(userId, goalId, format);
   },
 
   async transactionsCsv(userId: string, filters: { from?: string; to?: string; goal_id?: string }) {

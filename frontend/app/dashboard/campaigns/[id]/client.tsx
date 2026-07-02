@@ -29,7 +29,7 @@ import {
   useCreateWithdrawal,
   useGoalWithdrawals,
 } from '@/hooks/use-api';
-import { formatNaira, getInitials } from '@/lib/utils';
+import { formatNaira, getInitials, downloadFile } from '@/lib/utils';
 import { getAuthErrorMessage } from '@/contexts/auth-context';
 import { ApiError } from '@/lib/api/client';
 
@@ -99,17 +99,17 @@ export default function CampaignDetailClient() {
     }
   };
 
-  const handleExport = async () => {
+  const handleExport = async (format: 'csv' | 'pdf') => {
     try {
-      const res = await exportCampaign.mutateAsync(id);
-      const blob = new Blob([res.data], { type: 'text/csv;charset=utf-8' });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `campaign-${campaign.id}.csv`;
-      a.click();
-      URL.revokeObjectURL(url);
-      toast.success('Campaign export downloaded');
+      const res = await exportCampaign.mutateAsync({ id, format });
+      const slug = campaign.slug ?? campaign.id;
+      const filename = `campaign-${slug}-report.${format}`;
+      if (res.data instanceof Blob) {
+        downloadFile(res.data, filename);
+      } else {
+        downloadFile(res.data, filename, format === 'pdf' ? 'application/pdf' : 'text/csv;charset=utf-8');
+      }
+      toast.success(`${format.toUpperCase()} report downloaded`);
     } catch (err) {
       toast.error(getAuthErrorMessage(err));
     }
@@ -146,8 +146,11 @@ export default function CampaignDetailClient() {
         description={campaign.category + ' · ' + campaign.status}
         action={
           <div className="flex gap-2">
-            <Button variant="outline" onClick={handleExport} disabled={exportCampaign.isPending}>
-              <Download className="h-4 w-4" /> Export
+            <Button variant="outline" onClick={() => handleExport('csv')} disabled={exportCampaign.isPending}>
+              <Download className="h-4 w-4" /> CSV
+            </Button>
+            <Button variant="outline" onClick={() => handleExport('pdf')} disabled={exportCampaign.isPending}>
+              <Download className="h-4 w-4" /> PDF
             </Button>
             {campaign.slug && <Button variant="outline" asChild><Link href={'/c/' + campaign.slug}><Share2 className="h-4 w-4" /> Public</Link></Button>}
           </div>

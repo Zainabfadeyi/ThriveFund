@@ -71,10 +71,11 @@ export const goalsController = {
 
   async exportCampaign(req: Request, res: Response, next: NextFunction) {
     try {
-      const csv = await goalsService.exportCampaign(req.user!.sub, req.params.id);
-      res.setHeader('Content-Type', 'text/csv');
-      res.setHeader('Content-Disposition', `attachment; filename="campaign-${req.params.id}.csv"`);
-      res.send(csv);
+      const format = req.query.format === 'pdf' ? 'pdf' : 'csv';
+      const file = await goalsService.exportCampaign(req.user!.sub, req.params.id, format);
+      res.setHeader('Content-Type', file.contentType);
+      res.setHeader('Content-Disposition', `attachment; filename="${file.filename}"`);
+      res.send(file.body);
     } catch (err) { next(err); }
   },
 };

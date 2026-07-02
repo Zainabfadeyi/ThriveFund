@@ -84,7 +84,8 @@ export const goalsApi = {
     apiRequest<{ withdrawal: Withdrawal; transfer: unknown; available_before_withdrawal: number }>(`/goals/${id}/withdraw`, { method: 'POST', body: JSON.stringify(body) }),
   withdrawals: (id: string) => apiRequest<Withdrawal[]>(`/goals/${id}/withdrawals`),
   share: (id: string) => apiRequest<ShareLink>(`/goals/${id}/share`),
-  exportCsv: (id: string) => apiRequest<string>(`/goals/${id}/export`),
+  exportReport: (id: string, format: 'csv' | 'pdf' = 'csv') =>
+    apiRequest<string | Blob>(`/goals/${id}/export`, { params: { format } }),
   createVirtualAccount: (id: string, body?: { account_name_suffix?: string; preferred_bank?: string }) =>
     apiRequest<VirtualAccount>(`/goals/${id}/virtual-account`, { method: 'POST', body: JSON.stringify(body ?? {}) }),
   getVirtualAccount: (id: string) => apiRequest<VirtualAccount>(`/goals/${id}/virtual-account`),
@@ -145,6 +146,8 @@ export const reconciliationApi = {
 
 export const reportsApi = {
   financialSummary: () => apiRequest<FinancialSummary>('/reports/financial-summary'),
+  campaignExport: (goalId: string, format: 'csv' | 'pdf' = 'csv') =>
+    apiRequest<string | Blob>(`/reports/campaigns/${goalId}/export`, { params: { format } }),
   transactionsExport: (params?: { goal_id?: string; from?: string; to?: string }) =>
     apiRequest<string>('/reports/transactions/export', { params }),
   reconciliation: (params?: { page?: number; per_page?: number }) =>
@@ -188,7 +191,7 @@ export const adminApi = {
     apiRequest<Goal[]>('/admin/goals', { params }),
   updateGoalStatus: (id: string, status: string) =>
     apiRequest<Goal>(`/admin/goals/${id}/status`, { method: 'PATCH', body: JSON.stringify({ status }) }),
-  exportGoalCsv: (id: string) => apiRequest<string>(`/admin/goals/${id}/export`),
+  exportGoalCsv: (id: string) => apiRequest<string | Blob>(`/admin/goals/${id}/export`, { params: { format: 'csv' } }),
   transactions: (params?: { page?: number; per_page?: number }) => apiRequest<Transaction[]>('/admin/transactions', { params }),
   webhookEvents: (params?: { processed?: boolean; event_type?: string; page?: number; per_page?: number }) =>
     apiRequest<unknown[]>('/admin/webhook-events', { params }),

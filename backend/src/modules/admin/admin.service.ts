@@ -105,8 +105,8 @@ export const adminService = {
     return goal;
   },
 
-  async exportGoal(goalId: string) {
-    return goalsService.exportCampaignAdmin(goalId);
+  async exportGoal(goalId: string, format: 'csv' | 'pdf' = 'csv') {
+    return goalsService.exportCampaignAdmin(goalId, format);
   },
 
   async listTransactions(query: { page?: number; per_page?: number }) {

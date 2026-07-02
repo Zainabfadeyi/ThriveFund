@@ -109,6 +109,7 @@ const endpoints: EndpointCase[] = [
   { method: 'GET', path: '/api/v1/reconciliation/overview', auth: 'user' },
   { method: 'GET', path: '/api/v1/reconciliation/rec_123', auth: 'user' },
   { method: 'GET', path: '/api/v1/reports/financial-summary', auth: 'user' },
+  { method: 'GET', path: '/api/v1/reports/campaigns/goal_123/export', auth: 'user', accept: 'text/csv' },
   { method: 'GET', path: '/api/v1/reports/transactions/export', auth: 'user', accept: 'text/csv' },
   { method: 'GET', path: '/api/v1/reports/reconciliation', auth: 'user' },
 
@@ -365,6 +366,7 @@ async function stubControllers() {
   transactions.transactionsController.exportCsv = csvHandler;
   patchAll(reports.reportsController, jsonHandler);
   reports.reportsController.transactionsExport = csvHandler;
+  reports.reportsController.campaignExport = csvHandler;
 
   health.healthController.liveness = jsonHandler;
   health.healthController.readiness = jsonHandler;

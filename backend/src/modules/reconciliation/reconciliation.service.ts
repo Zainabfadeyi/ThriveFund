@@ -81,6 +81,8 @@ export const reconciliationService = {
     await webhooksRepository.markStatus(payment.provider_reference, 'processed');
 
     const goal = await goalsRepository.findOwnerByGoalId(goalId);
+    const completionState = await goalsRepository.findCompletionState(goalId);
+
     broadcastRealtime({
       type: 'transaction.created',
       user_id: goal?.user_id as string | undefined,
@@ -91,6 +93,9 @@ export const reconciliationService = {
         amount: Number(payment.amount),
         payer_name: payment.payer_name,
         status: txnStatus,
+        current_amount: completionState ? Number(completionState.current_amount) : undefined,
+        target_amount: completionState ? Number(completionState.target_amount) : undefined,
+        slug: completionState?.slug ?? null,
       },
     });
 
@@ -98,17 +103,18 @@ export const reconciliationService = {
       ? await this.completeCampaignIfTargetReached(goalId, va as Record<string, unknown>)
       : null;
 
-    const completionState = await goalsRepository.findCompletionState(goalId);
-    if (completionState) {
+    const updatedState = completion ? await goalsRepository.findCompletionState(goalId) : completionState;
+    if (updatedState) {
       broadcastRealtime({
         type: 'campaign.balance_updated',
-        user_id: completionState.user_id as string,
-        organization_id: completionState.organization_id as string | null,
+        user_id: updatedState.user_id as string,
+        organization_id: updatedState.organization_id as string | null,
         goal_id: goalId,
         data: {
-          current_amount: Number(completionState.current_amount),
-          target_amount: Number(completionState.target_amount),
-          status: completionState.status,
+          current_amount: Number(updatedState.current_amount),
+          target_amount: Number(updatedState.target_amount),
+          status: updatedState.status,
+          slug: updatedState.slug ?? null,
           completed: Boolean(completion?.completed),
         },
       });

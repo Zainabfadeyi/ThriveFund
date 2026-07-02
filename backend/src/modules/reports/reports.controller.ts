@@ -10,6 +10,16 @@ export const reportsController = {
     } catch (err) { next(err); }
   },
 
+  async campaignExport(req: Request, res: Response, next: NextFunction) {
+    try {
+      const format = req.query.format === 'pdf' ? 'pdf' : 'csv';
+      const file = await reportsService.campaignExport(req.user!.sub, req.params.goalId, format);
+      res.setHeader('Content-Type', file.contentType);
+      res.setHeader('Content-Disposition', `attachment; filename="${file.filename}"`);
+      res.send(file.body);
+    } catch (err) { next(err); }
+  },
+
   async transactionsExport(req: Request, res: Response, next: NextFunction) {
     try {
       const csv = await reportsService.transactionsCsv(req.user!.sub, {

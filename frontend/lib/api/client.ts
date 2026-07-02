@@ -60,7 +60,7 @@ function buildUrl(path: string, params?: RequestOptions['params']) {
   return q ? `${base}?${q}` : base;
 }
 
-async function refreshAccessToken(): Promise<string | null> {
+export async function refreshAccessToken(): Promise<string | null> {
   const refresh = getRefreshToken();
   if (!refresh) return null;
   try {
@@ -114,6 +114,10 @@ export async function apiRequest<T>(
   if (contentType.includes('text/csv')) {
     const text = await res.text();
     return { data: text as T };
+  }
+  if (contentType.includes('application/pdf')) {
+    const blob = await res.blob();
+    return { data: blob as T };
   }
 
   const json = await res.json();

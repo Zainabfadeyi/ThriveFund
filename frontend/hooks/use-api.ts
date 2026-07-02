@@ -66,6 +66,7 @@ export function useDashboard() {
   return useQuery({
     queryKey: queryKeys.dashboard,
     queryFn: async () => (await dashboardApi.overview()).data,
+    refetchInterval: 30_000,
   });
 }
 
@@ -76,6 +77,7 @@ export function useGoals(params?: { status?: string; page?: number }) {
       const res = await goalsApi.list(params);
       return { data: res.data, meta: res.meta };
     },
+    refetchInterval: 20_000,
   });
 }
 
@@ -84,6 +86,10 @@ export function useGoal(id: string) {
     queryKey: queryKeys.goal(id),
     queryFn: async () => (await goalsApi.get(id)).data,
     enabled: !!id,
+    refetchInterval: (query) => {
+      const status = query.state.data?.status;
+      return status && status !== 'completed' ? 10_000 : false;
+    },
   });
 }
 
@@ -147,7 +153,7 @@ export function useGoalShare(id: string) {
 
 export function useExportCampaign() {
   return useMutation({
-    mutationFn: goalsApi.exportCsv,
+    mutationFn: ({ id, format }: { id: string; format: 'csv' | 'pdf' }) => goalsApi.exportReport(id, format),
   });
 }
 
@@ -444,6 +450,10 @@ export function usePublicGoal(slug: string) {
     queryKey: queryKeys.publicGoal(slug),
     queryFn: async () => (await publicApi.getGoal(slug)).data,
     enabled: !!slug,
+    refetchInterval: (query) => {
+      const status = query.state.data?.status;
+      return status && status !== 'completed' ? 10_000 : false;
+    },
   });
 }
 

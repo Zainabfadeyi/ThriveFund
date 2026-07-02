@@ -70,7 +70,6 @@ export const withdrawalsService = {
     });
 
     const owner = await goalsRepository.findOwnerByGoalId(goalId);
-    await this.emailOwner(owner?.email, 'initiated', goal.title as string, amount, account);
 
     await logAudit({
       action: AuditAction.WithdrawalCreated,
@@ -109,11 +108,11 @@ export const withdrawalsService = {
       return { withdrawal: updated ?? withdrawal, transfer: transferResponse, available_before_withdrawal: available };
     } catch (err) {
       const details = (err as { details?: Record<string, unknown> }).details;
-      const providerReference = typeof details?.providerReference === 'string' ? details.providerReference : undefined;
+      const providerReference = extractProviderReference(details);
       const providerCode = typeof details?.providerCode === 'string' ? details.providerCode : undefined;
-      const processing = providerCode === '201';
+      const likelySubmitted = Boolean(providerReference) || providerCode === '201';
 
-      if (processing) {
+      if (likelySubmitted) {
         const processingWithdrawal = await withdrawalsRepository.markProcessing(
           withdrawalId,
           providerReference ?? merchantTxRefFromWithdrawalId(withdrawalId),
@@ -152,6 +151,8 @@ export const withdrawalsService = {
     transfer: { status: string; providerReference: string; fee?: number };
   }) {
     const { withdrawalId, goalId, userId, goalTitle, amount, account, ownerEmail, organizationId, transfer } = input;
+    const existing = await withdrawalsRepository.findById(withdrawalId);
+    const previousStatus = (existing?.status as string | undefined) ?? 'pending';
 
     const updated = transfer.status === 'failed'
       ? await withdrawalsRepository.markFailed(withdrawalId, 'Provider returned failed status', transfer.providerReference, transfer.fee)
@@ -159,7 +160,7 @@ export const withdrawalsService = {
         ? await withdrawalsRepository.markSuccessful(withdrawalId, transfer.providerReference, transfer.fee)
         : await withdrawalsRepository.markProcessing(withdrawalId, transfer.providerReference, transfer.fee);
 
-    if (transfer.status === 'successful') {
+    if (transfer.status === 'successful' && previousStatus !== 'successful') {
       await goalsRepository.markClosedOut(goalId, userId);
       await this.emailOwner(ownerEmail, 'successful', goalTitle, amount, account);
       await logAudit({
@@ -170,10 +171,6 @@ export const withdrawalsService = {
         resource_id: withdrawalId,
         metadata: { provider_reference: transfer.providerReference, fee: transfer.fee },
       });
-    }
-
-    if (transfer.status === 'failed') {
-      await this.emailOwner(ownerEmail, 'failed', goalTitle, amount, account, 'Provider returned failed status');
     }
 
     return updated;
@@ -230,13 +227,26 @@ export const withdrawalsService = {
     }
 
     if (failureEvents.includes(input.event)) {
+      if ((withdrawal.status as string) === 'failed') {
+        return { matched: true as const, duplicate: true as const, withdrawal };
+      }
+
       const updated = await withdrawalsRepository.markFailed(
         withdrawal.id as string,
         'Provider reported payout failure',
         input.providerReference ?? (withdrawal.provider_reference as string | undefined),
         input.fee,
       );
-      await this.emailOwner(owner?.email, 'failed', goal.title as string, Number(withdrawal.amount), account, 'Provider reported payout failure');
+      if ((withdrawal.status as string) !== 'successful') {
+        await this.emailOwner(
+          owner?.email,
+          'failed',
+          goal.title as string,
+          Number(withdrawal.amount),
+          account,
+          'Provider reported payout failure',
+        );
+      }
       return { matched: true as const, withdrawal: updated };
     }
 
@@ -267,4 +277,19 @@ export const withdrawalsService = {
 
 function merchantTxRefFromWithdrawalId(withdrawalId: string): string {
   return `TF-WD-${withdrawalId.replace(/[^a-zA-Z0-9]/g, '').slice(0, 48)}`.slice(0, 64);
+}
+
+function extractProviderReference(details?: Record<string, unknown>): string | undefined {
+  if (!details) return undefined;
+  if (typeof details.providerReference === 'string' && details.providerReference.trim()) {
+    return details.providerReference.trim();
+  }
+
+  const data = details.data;
+  if (data && typeof data === 'object' && !Array.isArray(data)) {
+    const transferId = (data as Record<string, unknown>).id;
+    if (typeof transferId === 'string' && transferId.trim()) return transferId.trim();
+  }
+
+  return undefined;
 }

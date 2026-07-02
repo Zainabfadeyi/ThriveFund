@@ -29,10 +29,25 @@ Open http://localhost:3000
 
 ## Seed accounts
 
-| User | Email | Password | Role |
-|------|-------|----------|------|
-| Organization owner | adebayo@thrivefund.ng | configured in seed data | user |
-| Admin | admin@thrivefund.ng | configured in seed data | admin |
+All demo accounts use password **`DemoPass123!`**
+
+| Role | Email | Password | Where to go |
+|------|-------|----------|-------------|
+| **Admin** | admin@thrivefund.ng | DemoPass123! | http://localhost:3000/admin |
+| Organization owner | adebayo@thrivefund.ng | DemoPass123! | http://localhost:3000/dashboard |
+| Organization owner | chidi@thrivefund.ng | DemoPass123! | http://localhost:3000/dashboard |
+| Organization owner | fatima@thrivefund.ng | DemoPass123! | http://localhost:3000/dashboard |
+
+Seed the database:
+
+```bash
+cd backend
+npm run seed
+# or manually:
+mysql -u root thrivefund < database/seed.sql
+```
+
+After logging in as **admin@thrivefund.ng**, open **Platform Admin** in the sidebar or go directly to `/admin`. You can view users, organizations, campaigns, transactions, webhooks, and reconciliation.
 
 ## Environment variables
 

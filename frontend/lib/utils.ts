@@ -30,3 +30,13 @@ export function formatDate(date: string): string {
     year: 'numeric',
   });
 }
+
+export function downloadFile(data: Blob | string, filename: string, mimeType?: string) {
+  const blob = typeof data === 'string' ? new Blob([data], { type: mimeType ?? 'text/csv;charset=utf-8' }) : data;
+  const url = URL.createObjectURL(blob);
+  const anchor = document.createElement('a');
+  anchor.href = url;
+  anchor.download = filename;
+  anchor.click();
+  URL.revokeObjectURL(url);
+}

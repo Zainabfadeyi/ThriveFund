@@ -93,10 +93,11 @@ export const adminController = {
 
   async exportGoal(req: Request, res: Response, next: NextFunction) {
     try {
-      const csv = await adminService.exportGoal(req.params.id);
-      res.setHeader('Content-Type', 'text/csv');
-      res.setHeader('Content-Disposition', `attachment; filename="campaign-${req.params.id}.csv"`);
-      res.send(csv);
+      const format = req.query.format === 'pdf' ? 'pdf' : 'csv';
+      const file = await adminService.exportGoal(req.params.id, format);
+      res.setHeader('Content-Type', file.contentType);
+      res.setHeader('Content-Disposition', `attachment; filename="${file.filename}"`);
+      res.send(file.body);
     } catch (err) { next(err); }
   },
 
