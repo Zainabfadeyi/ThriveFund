@@ -1,8 +1,9 @@
 'use client';
 
 import Link from 'next/link';
-import { useParams } from 'next/navigation';
-import { Copy, QrCode, Share2, ArrowLeft, Plus } from 'lucide-react';
+
+import { usePathname } from 'next/navigation';
+import { Copy, QrCode, Share2, ArrowLeft } from 'lucide-react';
 import { QRCodeSVG } from 'qrcode.react';
 import { toast } from 'sonner';
 import { PageHeader } from '@/components/shared/page-header';
@@ -26,8 +27,9 @@ import { getAuthErrorMessage } from '@/contexts/auth-context';
 import { ApiError } from '@/lib/api/client';
 
 export default function CampaignDetailClient() {
-  const params = useParams();
-  const id = params.id as string;
+  const pathname = usePathname();
+  // Extract real ID from the URL — useParams() reads the pre-rendered placeholder in static export
+  const id = pathname.split('/').filter(Boolean).pop() ?? '';
   const { data: campaign, isLoading, error, refetch } = useGoal(id);
   const { data: va, refetch: refetchVa } = useGoalVirtualAccount(id);
   const { data: txns } = useGoalTransactions(id);
