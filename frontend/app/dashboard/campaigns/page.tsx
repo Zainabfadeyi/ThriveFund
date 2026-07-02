@@ -29,7 +29,17 @@ export default function CampaignsPage() {
       />
 
       {!campaigns.length ? (
-        <EmptyState title="No collections yet" description="Create a collection and assign a virtual account." />
+        <EmptyState
+          title="No collections yet"
+          description="Create your first collection, then assign a virtual account for payments."
+          action={
+            <Button asChild>
+              <Link href="/dashboard/campaigns/new">
+                <Plus className="h-4 w-4" /> Create Collection
+              </Link>
+            </Button>
+          }
+        />
       ) : (
         <div className="space-y-4">
           {campaigns.map((c) => {

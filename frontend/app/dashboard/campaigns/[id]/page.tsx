@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
-import { Copy, QrCode, Share2, ArrowLeft } from 'lucide-react';
+import { Copy, QrCode, Share2, ArrowLeft, Plus } from 'lucide-react';
 import { QRCodeSVG } from 'qrcode.react';
 import { toast } from 'sonner';
 import { PageHeader } from '@/components/shared/page-header';
@@ -23,6 +23,7 @@ import {
 } from '@/hooks/use-api';
 import { formatNaira, getInitials } from '@/lib/utils';
 import { getAuthErrorMessage } from '@/contexts/auth-context';
+import { ApiError } from '@/lib/api/client';
 
 export default function CampaignDetailPage() {
   const params = useParams();
@@ -35,7 +36,27 @@ export default function CampaignDetailPage() {
   const createVa = useCreateVirtualAccount();
 
   if (isLoading) return <LoadingState />;
-  if (error && !campaign) return <ErrorState message={getAuthErrorMessage(error)} onRetry={() => refetch()} />;
+  if (error && !campaign) {
+    const isMissingGoal = error instanceof ApiError && error.status === 404;
+    return (
+      <ErrorState
+        message={isMissingGoal ? 'Collection not found. Create a new collection to start accepting payments.' : getAuthErrorMessage(error)}
+        onRetry={isMissingGoal ? undefined : () => refetch()}
+        action={
+          <div className="flex flex-wrap items-center justify-center gap-2">
+            <Button variant="outline" size="sm" asChild>
+              <Link href="/dashboard/campaigns">Back to Collections</Link>
+            </Button>
+            <Button size="sm" asChild>
+              <Link href="/dashboard/campaigns/new">
+                <Plus className="h-4 w-4" /> Create Collection
+              </Link>
+            </Button>
+          </div>
+        }
+      />
+    );
+  }
   if (!campaign) return null;
 
   const progress = Number(campaign.progress_percent ?? 0);

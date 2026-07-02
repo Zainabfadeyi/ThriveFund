@@ -27,6 +27,8 @@ const schema = z.object({
   LOG_HTTP: z.enum(['true', 'false']).optional(),
   /** basic | detailed | debug — verbosity of HTTP logs */
   LOG_HTTP_LEVEL: z.enum(['basic', 'detailed', 'debug']).optional(),
+  RATE_LIMIT_WINDOW_MS: z.coerce.number().default(15 * 60 * 1000),
+  RATE_LIMIT_MAX: z.coerce.number().default(1000),
   NOMBA_ENVIRONMENT: z.enum(['sandbox', 'production']).default('sandbox'),
   NOMBA_BASE_URL: z.string().url().optional(),
   NOMBA_CLIENT_ID: z.string().optional(),

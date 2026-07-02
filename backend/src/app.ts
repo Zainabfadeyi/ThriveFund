@@ -30,6 +30,8 @@ import { healthRouter } from './modules/health/health.routes';
 
 const app = express();
 
+app.set('trust proxy', 1);
+
 app.use(helmet());
 app.use(cors({
   origin: (origin, callback) => {
@@ -56,10 +58,18 @@ app.use(express.json({
 app.use(requestLogger);
 app.use(
   rateLimit({
-    windowMs: 15 * 60 * 1000,
-    max: 100,
+    windowMs: env.RATE_LIMIT_WINDOW_MS,
+    max: env.RATE_LIMIT_MAX,
     standardHeaders: true,
     legacyHeaders: false,
+    skip: (req) => req.method === 'OPTIONS',
+    message: {
+      success: false,
+      error: {
+        code: 'RATE_LIMITED',
+        message: 'Too many requests. Please wait a moment and try again.',
+      },
+    },
   }),
 );
 
