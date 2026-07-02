@@ -113,4 +113,40 @@ export const withdrawalsRepository = {
     );
     return rows[0] ?? null;
   },
+
+  async findByProviderReference(providerReference: string) {
+    const rows = await query(
+      `SELECT w.*, pa.bank_name, pa.account_number, pa.account_name, g.title AS goal_title
+       FROM withdrawals w
+       JOIN payout_accounts pa ON pa.id = w.payout_account_id
+       JOIN goals g ON g.id = w.goal_id
+       WHERE w.provider_reference = ?
+       LIMIT 1`,
+      [providerReference],
+    );
+    return rows[0] ?? null;
+  },
+
+  async findOpenByMerchantTxRef(merchantTxRef: string) {
+    const withdrawalId = withdrawalIdFromMerchantTxRef(merchantTxRef);
+    if (!withdrawalId) return null;
+
+    const rows = await query(
+      `SELECT w.*, pa.bank_name, pa.account_number, pa.account_name, g.title AS goal_title
+       FROM withdrawals w
+       JOIN payout_accounts pa ON pa.id = w.payout_account_id
+       JOIN goals g ON g.id = w.goal_id
+       WHERE w.id = ? AND w.status IN ('pending', 'processing', 'failed')
+       LIMIT 1`,
+      [withdrawalId],
+    );
+    return rows[0] ?? null;
+  },
 };
+
+function withdrawalIdFromMerchantTxRef(merchantTxRef: string): string | null {
+  if (!merchantTxRef.startsWith('TF-WD-')) return null;
+  const suffix = merchantTxRef.slice('TF-WD-'.length);
+  if (!suffix.startsWith('wd') || suffix.length < 14) return null;
+  return `wd_${suffix.slice(2)}`;
+}

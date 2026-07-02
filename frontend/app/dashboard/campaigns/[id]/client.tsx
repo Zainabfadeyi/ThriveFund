@@ -117,12 +117,19 @@ export default function CampaignDetailClient() {
 
   const handleWithdraw = async () => {
     try {
-      await createWithdrawal.mutateAsync({
+      const res = await createWithdrawal.mutateAsync({
         payout_account_id: payoutId || undefined,
         amount: withdrawalAmount ? Number(withdrawalAmount) : undefined,
       });
       setWithdrawalAmount('');
-      toast.success('Withdrawal submitted');
+      const status = res.data.withdrawal.status;
+      if (status === 'successful') {
+        toast.success('Withdrawal completed — funds sent to your bank account');
+      } else if (status === 'processing' || status === 'pending') {
+        toast.success('Withdrawal is processing — your balance will update when Nomba confirms');
+      } else {
+        toast.error(res.data.withdrawal.failure_reason ?? 'Withdrawal failed');
+      }
     } catch (err) {
       toast.error(getAuthErrorMessage(err));
     }
@@ -273,7 +280,14 @@ export default function CampaignDetailClient() {
                       <TableRow key={w.id}>
                         <TableCell>{formatNaira(Number(w.amount))}</TableCell>
                         <TableCell>{w.account_name} · {w.bank_name ?? ''}</TableCell>
-                        <TableCell><StatusBadge status={w.status} /></TableCell>
+                        <TableCell>
+                          <div className="space-y-1">
+                            <StatusBadge status={w.status} />
+                            {w.status === 'failed' && w.failure_reason && (
+                              <p className="text-xs text-muted-foreground">{w.failure_reason}</p>
+                            )}
+                          </div>
+                        </TableCell>
                         <TableCell>{w.created_at ? new Date(w.created_at).toLocaleDateString('en-NG') : '-'}</TableCell>
                       </TableRow>
                     ))}

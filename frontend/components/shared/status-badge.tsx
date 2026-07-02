@@ -9,7 +9,7 @@ const statusMap: Record<string, { label: string; variant: 'success' | 'warning' 
   accepted: { label: 'Accepted', variant: 'success' },
   ready: { label: 'Ready', variant: 'success' },
   not_set: { label: 'Not Set', variant: 'muted' },
-  pending: { label: 'Pending', variant: 'warning' },
+  processing: { label: 'Processing', variant: 'warning' },
   pending_review: { label: 'Pending Review', variant: 'warning' },
   partial: { label: 'Partial', variant: 'warning' },
   unmatched: { label: 'Unmatched', variant: 'destructive' },

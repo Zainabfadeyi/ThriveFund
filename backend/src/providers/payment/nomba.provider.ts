@@ -209,8 +209,27 @@ function providerAccountId(account: NombaVirtualAccount, fallback: string): stri
 
 function transferStatus(status: string | undefined): BankTransferResult['status'] {
   const normalized = (status ?? '').toLowerCase();
-  if (['success', 'successful'].includes(normalized)) return 'successful';
-  if (['processing', 'pending', 'pending_billing'].includes(normalized)) return 'processing';
+  if (['success', 'successful', 'completed', 'paid'].includes(normalized)) return 'successful';
+  if (
+    ['processing', 'pending', 'pending_billing', 'new', 'cancelled', 'payment_failed', 'reversed_by_vendor'].includes(
+      normalized,
+    )
+  ) {
+    return 'processing';
+  }
+  if (['refund', 'failed', 'failure'].includes(normalized)) return 'failed';
+  return 'failed';
+}
+
+function resolveTransferStatus(response: NombaResponse<NombaBankTransfer> & NombaBankTransfer): BankTransferResult['status'] {
+  const transfer = response.data ?? response;
+  const mapped = transferStatus(transfer.status);
+  if (mapped !== 'failed') return mapped;
+
+  const code = nombaCode(response)?.toLowerCase();
+  if (code === '201') return 'processing';
+  if (code === '00' && transfer.id) return 'processing';
+
   return 'failed';
 }
 
@@ -352,6 +371,7 @@ export class NombaProvider implements PaymentProvider {
     const response = await this.request<NombaBankTransfer>(path, {
       method: 'POST',
       idempotencyKey: request.merchantTxRef,
+      acceptCodes: ['201'],
       body: {
         amount: request.amount,
         accountNumber: request.accountNumber,
@@ -367,7 +387,7 @@ export class NombaProvider implements PaymentProvider {
     return {
       provider: PaymentProviderName.Nomba,
       providerReference: transfer.id ?? request.merchantTxRef,
-      status: transferStatus(transfer.status ?? response.description),
+      status: resolveTransferStatus(response),
       amount: Number(transfer.amount ?? request.amount),
       fee: transfer.fee,
       raw: response,
@@ -467,6 +487,7 @@ export class NombaProvider implements PaymentProvider {
       body?: Record<string, unknown>;
       skipAuth?: boolean;
       idempotencyKey?: string;
+      acceptCodes?: string[];
     },
   ): Promise<NombaResponse<T> & T> {
     const token = options.skipAuth ? null : await this.getAccessToken();
@@ -514,7 +535,8 @@ export class NombaProvider implements PaymentProvider {
     }
 
     const succeeded = nombaSucceeded(json);
-    if (succeeded === false) {
+    const acceptedCode = options.acceptCodes?.includes(nombaCode(json) ?? '');
+    if (succeeded === false && !acceptedCode) {
       const providerMessage = nombaMessage(json);
       throw Errors.provider(providerMessage ?? 'Nomba request was not successful', {
         provider: PaymentProviderName.Nomba,

@@ -73,7 +73,7 @@ test('NombaProvider maps bank list when data is a direct array', async () => {
 });
 
 test('NombaProvider treats provider-level validation errors as provider failures', async () => {
-  (globalThis as unknown as { fetch: typeof fetch }).fetch = async (url, init) => {
+  (globalThis as unknown as { fetch: typeof fetch }).fetch = async (url) => {
     if (String(url).endsWith('/v1/auth/token/issue')) {
       return jsonResponse({ data: { access_token: 'token_123' } });
     }
@@ -106,4 +106,72 @@ test('NombaProvider treats provider-level validation errors as provider failures
       return true;
     },
   );
+});
+
+test('NombaProvider maps SUCCESS transfer responses as successful', async () => {
+  (globalThis as unknown as { fetch: typeof fetch }).fetch = async (url) => {
+    if (String(url).endsWith('/v1/auth/token/issue')) {
+      return jsonResponse({ data: { access_token: 'token_123' } });
+    }
+
+    return jsonResponse({
+      code: '00',
+      description: 'Success',
+      data: {
+        id: 'API-TRANSFER-123',
+        status: 'SUCCESS',
+        amount: 5000,
+        fee: 50,
+      },
+    });
+  };
+
+  const { NombaProvider } = await import('../src/providers/payment/nomba.provider');
+  const provider = new NombaProvider();
+
+  const result = await provider.transferToBank({
+    amount: 5000,
+    accountNumber: '0123456789',
+    accountName: 'Test User',
+    bankCode: '058',
+    merchantTxRef: 'TF-WD-wdabc123def456',
+  });
+
+  assert.equal(result.status, 'successful');
+  assert.equal(result.providerReference, 'API-TRANSFER-123');
+});
+
+test('NombaProvider maps 201 PENDING_BILLING transfer responses as processing', async () => {
+  (globalThis as unknown as { fetch: typeof fetch }).fetch = async (url) => {
+    if (String(url).endsWith('/v1/auth/token/issue')) {
+      return jsonResponse({ data: { access_token: 'token_123' } });
+    }
+
+    return jsonResponse({
+      code: '201',
+      description: 'PROCESSING',
+      message: 'Unable to process response, please rely on web hook',
+      status: false,
+      data: {
+        id: 'API-TRANSFER-456',
+        status: 'PENDING_BILLING',
+        amount: 5000,
+        fee: 50,
+      },
+    });
+  };
+
+  const { NombaProvider } = await import('../src/providers/payment/nomba.provider');
+  const provider = new NombaProvider();
+
+  const result = await provider.transferToBank({
+    amount: 5000,
+    accountNumber: '0123456789',
+    accountName: 'Test User',
+    bankCode: '058',
+    merchantTxRef: 'TF-WD-wdabc123def456',
+  });
+
+  assert.equal(result.status, 'processing');
+  assert.equal(result.providerReference, 'API-TRANSFER-456');
 });

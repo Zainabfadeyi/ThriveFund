@@ -7,6 +7,7 @@ import { AuditAction } from '../../shared/types/enums';
 import { webhooksRepository } from './webhooks.repository';
 import { paymentsService } from '../payments/payments.service';
 import { reconciliationService } from '../reconciliation/reconciliation.service';
+import { withdrawalsService } from '../withdrawals/withdrawals.service';
 import { broadcastRealtime } from '../../lib/realtime';
 import { sendEmail, webhookFailureEmail } from '../../lib/email';
 import { env } from '../../config/env';
@@ -70,6 +71,18 @@ function shouldIngestPayment(event: string): boolean {
   return ['payment_success', 'payment.received', 'payment.success'].includes(event);
 }
 
+function shouldIngestPayout(event: string): boolean {
+  return [
+    'payout_success',
+    'payout.success',
+    'payout_failed',
+    'payout.failed',
+    'payout_refund',
+    'transfer_success',
+    'transfer_failed',
+  ].includes(event);
+}
+
 function statusFromEvent(event: string, fallback: string): string {
   if (event === 'payment_success') return 'successful';
   if (event === 'payment_failed') return 'failed';
@@ -130,6 +143,32 @@ export const webhooksService = {
     }
 
     if (!shouldIngestPayment(providerPayload.event)) {
+      if (shouldIngestPayout(providerPayload.event)) {
+        const transaction = (payload.data?.transaction ?? {}) as Record<string, unknown>;
+        const merchantTxRef = stringFrom(transaction.merchantTxRef, transaction.merchant_tx_ref);
+        const providerReference = stringFrom(
+          transaction.transactionId,
+          transaction.id,
+          providerPayload.providerReference,
+        );
+        const fee = numberFrom(transaction.fee) || undefined;
+
+        const result = await withdrawalsService.reconcileFromWebhook({
+          event: providerPayload.event,
+          merchantTxRef: merchantTxRef || undefined,
+          providerReference: providerReference || undefined,
+          fee,
+        });
+
+        await webhooksRepository.markStatus(providerPayload.providerReference, 'processed');
+        return {
+          received: true,
+          payout: true,
+          matched: result.matched,
+          duplicate: 'duplicate' in result ? result.duplicate : undefined,
+        };
+      }
+
       await webhooksRepository.markStatus(providerPayload.providerReference, 'processed');
       return { received: true, ignored: true, event: providerPayload.event };
     }

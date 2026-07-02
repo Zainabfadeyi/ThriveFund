@@ -93,34 +93,40 @@ export const withdrawalsService = {
         narration: body.narration ?? `ThriveFund withdrawal - ${goal.title as string}`,
       });
 
-      const updated = transfer.status === 'failed'
-        ? await withdrawalsRepository.markFailed(withdrawalId, 'Provider returned failed status', transfer.providerReference, transfer.fee)
-        : transfer.status === 'successful'
-          ? await withdrawalsRepository.markSuccessful(withdrawalId, transfer.providerReference, transfer.fee)
-          : await withdrawalsRepository.markProcessing(withdrawalId, transfer.providerReference, transfer.fee);
-
-      if (transfer.status === 'successful') {
-        await goalsRepository.markClosedOut(goalId, userId);
-        await this.emailOwner(owner?.email, 'successful', goal.title as string, amount, account);
-        await logAudit({
-          action: AuditAction.WithdrawalCompleted,
-          actor_id: userId,
-          organization_id: (goal.organization_id as string | null) ?? null,
-          resource_type: 'withdrawal',
-          resource_id: withdrawalId,
-          metadata: { provider_reference: transfer.providerReference, fee: transfer.fee },
-        });
-      }
-
-      if (transfer.status === 'failed') {
-        await this.emailOwner(owner?.email, 'failed', goal.title as string, amount, account, 'Provider returned failed status');
-      }
+      const updated = await this.applyTransferResult({
+        withdrawalId,
+        goalId,
+        userId,
+        goalTitle: goal.title as string,
+        amount,
+        account,
+        ownerEmail: owner?.email,
+        organizationId: (goal.organization_id as string | null) ?? null,
+        transfer,
+      });
 
       const { raw: _raw, ...transferResponse } = transfer;
       return { withdrawal: updated ?? withdrawal, transfer: transferResponse, available_before_withdrawal: available };
     } catch (err) {
+      const details = (err as { details?: Record<string, unknown> }).details;
+      const providerReference = typeof details?.providerReference === 'string' ? details.providerReference : undefined;
+      const providerCode = typeof details?.providerCode === 'string' ? details.providerCode : undefined;
+      const processing = providerCode === '201';
+
+      if (processing) {
+        const processingWithdrawal = await withdrawalsRepository.markProcessing(
+          withdrawalId,
+          providerReference ?? merchantTxRefFromWithdrawalId(withdrawalId),
+        );
+        return {
+          withdrawal: processingWithdrawal ?? withdrawal,
+          transfer: null,
+          available_before_withdrawal: available,
+        };
+      }
+
       const reason = err instanceof Error ? err.message : 'Withdrawal failed';
-      const failed = await withdrawalsRepository.markFailed(withdrawalId, reason);
+      const failed = await withdrawalsRepository.markFailed(withdrawalId, reason, providerReference);
       await this.emailOwner(owner?.email, 'failed', goal.title as string, amount, account, reason);
       await logAudit({
         action: AuditAction.WithdrawalFailed,
@@ -128,10 +134,113 @@ export const withdrawalsService = {
         organization_id: (goal.organization_id as string | null) ?? null,
         resource_type: 'withdrawal',
         resource_id: withdrawalId,
-        metadata: { reason },
+        metadata: { reason, provider_reference: providerReference ?? null },
       });
       return { withdrawal: failed ?? withdrawal, transfer: null, available_before_withdrawal: available };
     }
+  },
+
+  async applyTransferResult(input: {
+    withdrawalId: string;
+    goalId: string;
+    userId: string;
+    goalTitle: string;
+    amount: number;
+    account: Record<string, unknown>;
+    ownerEmail?: string;
+    organizationId?: string | null;
+    transfer: { status: string; providerReference: string; fee?: number };
+  }) {
+    const { withdrawalId, goalId, userId, goalTitle, amount, account, ownerEmail, organizationId, transfer } = input;
+
+    const updated = transfer.status === 'failed'
+      ? await withdrawalsRepository.markFailed(withdrawalId, 'Provider returned failed status', transfer.providerReference, transfer.fee)
+      : transfer.status === 'successful'
+        ? await withdrawalsRepository.markSuccessful(withdrawalId, transfer.providerReference, transfer.fee)
+        : await withdrawalsRepository.markProcessing(withdrawalId, transfer.providerReference, transfer.fee);
+
+    if (transfer.status === 'successful') {
+      await goalsRepository.markClosedOut(goalId, userId);
+      await this.emailOwner(ownerEmail, 'successful', goalTitle, amount, account);
+      await logAudit({
+        action: AuditAction.WithdrawalCompleted,
+        actor_id: userId,
+        organization_id: organizationId ?? null,
+        resource_type: 'withdrawal',
+        resource_id: withdrawalId,
+        metadata: { provider_reference: transfer.providerReference, fee: transfer.fee },
+      });
+    }
+
+    if (transfer.status === 'failed') {
+      await this.emailOwner(ownerEmail, 'failed', goalTitle, amount, account, 'Provider returned failed status');
+    }
+
+    return updated;
+  },
+
+  async reconcileFromWebhook(input: {
+    event: string;
+    merchantTxRef?: string;
+    providerReference?: string;
+    fee?: number;
+  }) {
+    const withdrawal =
+      (input.merchantTxRef ? await withdrawalsRepository.findOpenByMerchantTxRef(input.merchantTxRef) : null) ??
+      (input.providerReference ? await withdrawalsRepository.findByProviderReference(input.providerReference) : null);
+
+    if (!withdrawal) {
+      return { matched: false as const };
+    }
+
+    if ((withdrawal.status as string) === 'successful') {
+      return { matched: true as const, duplicate: true as const, withdrawal };
+    }
+
+    const goal = await goalsRepository.findByIdRaw(withdrawal.goal_id as string, withdrawal.user_id as string);
+    if (!goal) return { matched: false as const };
+
+    const account = await payoutAccountsRepository.findByIdForUser(
+      withdrawal.payout_account_id as string,
+      withdrawal.user_id as string,
+    );
+    if (!account) return { matched: false as const };
+
+    const owner = await goalsRepository.findOwnerByGoalId(withdrawal.goal_id as string);
+    const successEvents = ['payout_success', 'payout.success', 'transfer_success'];
+    const failureEvents = ['payout_failed', 'payout.failed', 'payout_refund', 'transfer_failed'];
+
+    if (successEvents.includes(input.event)) {
+      const updated = await this.applyTransferResult({
+        withdrawalId: withdrawal.id as string,
+        goalId: withdrawal.goal_id as string,
+        userId: withdrawal.user_id as string,
+        goalTitle: goal.title as string,
+        amount: Number(withdrawal.amount),
+        account,
+        ownerEmail: owner?.email,
+        organizationId: (goal.organization_id as string | null) ?? null,
+        transfer: {
+          status: 'successful',
+          providerReference: input.providerReference ?? (withdrawal.provider_reference as string),
+          fee: input.fee,
+        },
+      });
+      return { matched: true as const, withdrawal: updated };
+    }
+
+    if (failureEvents.includes(input.event)) {
+      const updated = await withdrawalsRepository.markFailed(
+        withdrawal.id as string,
+        'Provider reported payout failure',
+        input.providerReference ?? (withdrawal.provider_reference as string | undefined),
+        input.fee,
+      );
+      await this.emailOwner(owner?.email, 'failed', goal.title as string, Number(withdrawal.amount), account, 'Provider reported payout failure');
+      return { matched: true as const, withdrawal: updated };
+    }
+
+    return { matched: false as const };
   },
 
   async emailOwner(
@@ -155,3 +264,7 @@ export const withdrawalsService = {
     await sendEmail({ to: { email }, subject, html }).catch(() => undefined);
   },
 };
+
+function merchantTxRefFromWithdrawalId(withdrawalId: string): string {
+  return `TF-WD-${withdrawalId.replace(/[^a-zA-Z0-9]/g, '').slice(0, 48)}`.slice(0, 64);
+}
