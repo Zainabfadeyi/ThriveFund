@@ -27,6 +27,7 @@ type NombaResponse<T> = {
   description?: string;
   responseMessage?: string;
   message?: string;
+  status?: string | boolean;
   data?: T;
 };
 
@@ -39,7 +40,10 @@ type NombaErrorDetails = {
   status?: number;
   providerCode?: string;
   providerMessage?: string;
+  providerStatus?: string | boolean;
+  requestBody?: Record<string, unknown>;
   responseKeys?: string[];
+  dataKeys?: string[];
 };
 
 type NombaVirtualAccount = {
@@ -143,6 +147,17 @@ function nombaCode(json: NombaResponse<unknown>): string | undefined {
   return asString(json.code) ?? asString(json.responseCode);
 }
 
+function nombaSucceeded(json: NombaResponse<unknown>): boolean | undefined {
+  const code = nombaCode(json)?.toLowerCase();
+  if (code) return ['00', '0', 'success', 'successful'].includes(code);
+
+  if (typeof json.status === 'boolean') return json.status;
+  const status = asString(json.status)?.toLowerCase();
+  if (status) return ['true', 'success', 'successful', 'ok'].includes(status);
+
+  return undefined;
+}
+
 function responseKeys(value: unknown): string[] | undefined {
   if (!value || typeof value !== 'object') return undefined;
   return Object.keys(value as Record<string, unknown>).slice(0, 20);
@@ -156,8 +171,16 @@ function mapStatus(status: string): VerifiedPayment['status'] {
 }
 
 function buildAccountRef(reference: string): string {
-  const cleaned = reference.replace(/[^a-zA-Z0-9_-]/g, '').slice(0, 40);
-  return `TF-${cleaned}-${Date.now()}`.slice(0, 64);
+  const cleaned = reference.replace(/[^a-zA-Z0-9]/g, '').slice(0, 48);
+  const hash = crypto.createHash('sha256').update(reference).digest('hex').slice(0, 12);
+  return `TF${cleaned || 'ref'}${hash}`.slice(0, 64);
+}
+
+function buildAccountName(name: string): string {
+  const cleaned = name.replace(/[^a-zA-Z0-9 ]/g, ' ').replace(/\s+/g, ' ').trim();
+  const fallback = 'ThriveFund Customer';
+  const accountName = (cleaned || fallback).slice(0, 64).trim();
+  return accountName.length >= 8 ? accountName : fallback;
 }
 
 function unwrapVirtualAccount(response: NombaResponse<NombaVirtualAccount> & NombaVirtualAccount): NombaVirtualAccount {
@@ -217,17 +240,19 @@ export class NombaProvider implements PaymentProvider {
 
   async createVirtualAccount(request: CreateVirtualAccountRequest): Promise<VirtualAccountResult> {
     const accountRef = buildAccountRef(request.reference);
+    const accountName = buildAccountName(request.accountName);
     const path =
       env.NOMBA_VIRTUAL_ACCOUNT_SCOPE === 'sub_account'
         ? `/v1/accounts/virtual/${encodeURIComponent(requiredEnv('NOMBA_SUB_ACCOUNT_ID', this.subAccountId))}`
         : '/v1/accounts/virtual';
+    const body = {
+      accountRef,
+      accountName,
+    };
 
     const response = await this.request<NombaVirtualAccount>(path, {
       method: 'POST',
-      body: {
-        accountRef,
-        accountName: request.accountName.slice(0, 64),
-      },
+      body,
     });
 
     const account = unwrapVirtualAccount(response);
@@ -252,15 +277,26 @@ export class NombaProvider implements PaymentProvider {
       account.accountName;
 
     if (!accountNumber || !bankName || !bankAccountName) {
+      const providerMessage = nombaMessage(response);
+      const message = response.data
+        ? `Nomba virtual account response did not include bank details. accountRef=${account.accountRef ?? accountRef}`
+        : `Nomba virtual account response did not include a data payload. accountRef=${accountRef}`;
+
       throw Errors.provider(
-        `Nomba virtual account response did not include bank details. accountRef=${account.accountRef ?? accountRef}`,
+        providerMessage ? `${message} Provider message: ${providerMessage}` : message,
         {
           provider: PaymentProviderName.Nomba,
           environment: env.NOMBA_ENVIRONMENT,
           scope: env.NOMBA_VIRTUAL_ACCOUNT_SCOPE,
+          method: 'POST',
           path,
+          providerCode: nombaCode(response),
+          providerMessage,
+          providerStatus: response.status,
+          requestBody: body,
+          dataKeys: responseKeys(response.data),
           responseKeys: responseKeys(account),
-        },
+        } satisfies NombaErrorDetails,
       );
     }
 
@@ -439,7 +475,27 @@ export class NombaProvider implements PaymentProvider {
         status: response.status,
         providerCode: nombaCode(json),
         providerMessage,
+        requestBody: options.body,
         responseKeys: responseKeys(json),
+      } satisfies NombaErrorDetails);
+    }
+
+    const succeeded = nombaSucceeded(json);
+    if (succeeded === false) {
+      const providerMessage = nombaMessage(json);
+      throw Errors.provider(providerMessage ?? 'Nomba request was not successful', {
+        provider: PaymentProviderName.Nomba,
+        environment: env.NOMBA_ENVIRONMENT,
+        scope: env.NOMBA_VIRTUAL_ACCOUNT_SCOPE,
+        method: options.method,
+        path,
+        status: response.status,
+        providerCode: nombaCode(json),
+        providerMessage,
+        providerStatus: json.status,
+        requestBody: options.body,
+        responseKeys: responseKeys(json),
+        dataKeys: responseKeys(json.data),
       } satisfies NombaErrorDetails);
     }
 

@@ -34,11 +34,12 @@ function toProviderPayload(payload: NombaPayload): PaymentWebhookPayload {
   const providerReference = stringFrom(
     data.provider_reference,
     data.providerReference,
-    data.transactionId,
     data.sessionId,
+    data.transactionId,
     data.id,
-    transaction.transactionId,
     transaction.sessionId,
+    transaction.aliasAccountSessionId,
+    transaction.transactionId,
   );
   const event = eventName(payload);
 
