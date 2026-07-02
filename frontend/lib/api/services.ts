@@ -96,6 +96,9 @@ export const goalsApi = {
       transfer_fee_reserve: number;
       max_withdrawable: number;
       nomba_balance_available?: boolean;
+      settlement_lag?: boolean;
+      pending_wallet_commitment?: number;
+      balance_error?: string | null;
     }>(`/goals/${id}/withdrawal-availability`),
   share: (id: string) => apiRequest<ShareLink>(`/goals/${id}/share`),
   exportReport: (id: string, format: 'csv' | 'pdf' = 'csv') =>

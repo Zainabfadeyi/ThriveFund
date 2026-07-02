@@ -11,6 +11,25 @@ export const withdrawalsRepository = {
     return Number(rows[0]?.total ?? 0);
   },
 
+  async sumPendingWalletCommitment(excludeWithdrawalId?: string) {
+    const conditions = [`status IN ('pending', 'processing')`];
+    const values: unknown[] = [];
+    if (excludeWithdrawalId) {
+      conditions.push('id != ?');
+      values.push(excludeWithdrawalId);
+    }
+    const rows = await query<{ total_amount: number | string | null; pending_count: number | string | null }>(
+      `SELECT COALESCE(SUM(amount), 0) AS total_amount, COUNT(*) AS pending_count
+       FROM withdrawals
+       WHERE ${conditions.join(' AND ')}`,
+      values,
+    );
+    return {
+      amount: Number(rows[0]?.total_amount ?? 0),
+      count: Number(rows[0]?.pending_count ?? 0),
+    };
+  },
+
   async findByGoal(goalId: string, userId: string) {
     return query(
       `SELECT w.*, pa.bank_name, pa.account_number, pa.account_name, g.title AS goal_title

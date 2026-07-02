@@ -17,13 +17,55 @@ export function estimatedNetAvailable(collectedNgn: number, collectionTargetNgn?
   return Math.max(0, cap - getPayoutTransferFeeNgn());
 }
 
-export function maxWithdrawableNgn(campaignAvailable: number, nombaBalance: number | null): number {
+export function requiredWalletBalanceForPayout(payoutAmountNgn: number): number {
+  return payoutAmountNgn + getPayoutTransferFeeNgn();
+}
+
+export function pendingWalletCommitmentNgn(pendingAmountNgn: number, pendingCount: number): number {
+  return pendingAmountNgn + pendingCount * getPayoutTransferFeeNgn();
+}
+
+export function walletHeadroomNgn(nombaBalance: number, pendingAmountNgn: number, pendingCount: number): number {
+  return Math.max(0, nombaBalance - pendingWalletCommitmentNgn(pendingAmountNgn, pendingCount));
+}
+
+export function canFundPendingCommitments(
+  nombaBalance: number,
+  pendingAmountNgn: number,
+  pendingCount: number,
+): boolean {
+  return nombaBalance >= pendingWalletCommitmentNgn(pendingAmountNgn, pendingCount);
+}
+
+export function canAffordNewPayout(
+  payoutAmountNgn: number,
+  nombaBalance: number,
+  pendingAmountNgn = 0,
+  pendingCount = 0,
+): boolean {
+  return canFundPendingCommitments(
+    nombaBalance,
+    pendingAmountNgn + payoutAmountNgn,
+    pendingCount + 1,
+  );
+}
+
+export function maxWithdrawableNgn(
+  campaignAvailable: number,
+  nombaBalance: number | null,
+  pendingAmountNgn = 0,
+  pendingCount = 0,
+): number {
   const fee = getPayoutTransferFeeNgn();
   const afterFeeCampaign = Math.max(0, campaignAvailable - fee);
-  const afterFeeNomba = nombaBalance != null
-    ? Math.max(0, nombaBalance - fee)
-    : afterFeeCampaign;
-  return Math.min(afterFeeCampaign, afterFeeNomba);
+
+  if (nombaBalance == null) {
+    return 0;
+  }
+
+  const headroom = walletHeadroomNgn(nombaBalance, pendingAmountNgn, pendingCount);
+  const afterFeeWallet = Math.max(0, headroom - fee);
+  return Math.min(afterFeeCampaign, afterFeeWallet);
 }
 
 export function enrichGoalWithPayoutFee<T extends Record<string, unknown>>(goal: T) {

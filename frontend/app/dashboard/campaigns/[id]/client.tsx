@@ -89,9 +89,10 @@ export default function CampaignDetailClient() {
     .reduce((sum, w) => sum + Number(w.amount), 0);
   const campaignAvailable = Math.max(0, Number(campaign.current_amount) - reservedWithdrawals);
   const feeReserve = campaign.payout_fee_ngn ?? withdrawalAvailability?.transfer_fee_reserve ?? 50;
-  const availableForWithdrawal = withdrawalAvailability?.max_withdrawable ?? Math.max(0, campaignAvailable - feeReserve);
+  const availableForWithdrawal = withdrawalAvailability?.max_withdrawable ?? 0;
   const nombaBalance = withdrawalAvailability?.nomba_balance;
-  const nombaBalanceAvailable = withdrawalAvailability?.nomba_balance_available ?? nombaBalance != null;
+  const nombaBalanceAvailable = withdrawalAvailability?.nomba_balance_available ?? false;
+  const settlementLag = withdrawalAvailability?.settlement_lag ?? false;
   const netPayoutTarget = campaign.net_payout_target ?? Math.max(0, Number(campaign.target_amount) - feeReserve);
   const estimatedNetAvailable = campaign.estimated_net_available ?? Math.max(0, Math.min(Number(campaign.current_amount), Number(campaign.target_amount)) - feeReserve);
   const defaultPayout = payoutAccounts?.find((account) => Boolean(account.is_default)) ?? payoutAccounts?.[0];
@@ -251,7 +252,7 @@ export default function CampaignDetailClient() {
         <Card className="mb-8">
           <CardHeader><CardTitle>Withdraw Funds</CardTitle></CardHeader>
           <CardContent className="space-y-4">
-            <div className="grid gap-4 sm:grid-cols-3">
+            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
               <div>
                 <p className="text-sm text-muted-foreground">Collected</p>
                 <p className="text-xl font-bold">{formatNaira(Number(campaign.current_amount))}</p>
@@ -261,19 +262,35 @@ export default function CampaignDetailClient() {
                 <p className="text-xl font-bold">{formatNaira(reservedWithdrawals)}</p>
               </div>
               <div>
+                <p className="text-sm text-muted-foreground">Nomba wallet</p>
+                <p className="text-xl font-bold">
+                  {nombaBalanceAvailable && nombaBalance != null ? formatNaira(nombaBalance) : 'Checking...'}
+                </p>
+              </div>
+              <div>
                 <p className="text-sm text-muted-foreground">Available to withdraw</p>
                 <p className="text-xl font-bold text-primary">{formatNaira(availableForWithdrawal)}</p>
               </div>
             </div>
-            {nombaBalanceAvailable && nombaBalance != null && availableForWithdrawal < campaignAvailable - feeReserve && (
+            {!nombaBalanceAvailable && campaignAvailable > 0 && (
               <div className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">
-                Your campaign ledger shows {formatNaira(campaignAvailable)}, but Nomba settlement balance is {formatNaira(nombaBalance)}.
-                Payouts are capped at {formatNaira(availableForWithdrawal)} after reserving {formatNaira(feeReserve)} for transfer fees.
+                We could not read your Nomba settlement wallet yet, so withdrawals are paused. Collected funds may still be settling — try again in a few hours.
               </div>
             )}
-            {!nombaBalanceAvailable && campaignAvailable > feeReserve && (
+            {nombaBalanceAvailable && settlementLag && (
+              <div className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">
+                Your campaign ledger shows {formatNaira(campaignAvailable)}, but the Nomba settlement wallet only has {formatNaira(nombaBalance ?? 0)} right now.
+                Payouts are capped at {formatNaira(availableForWithdrawal)} after reserving {formatNaira(feeReserve)} for transfer fees. This usually means payments are still settling.
+              </div>
+            )}
+            {nombaBalanceAvailable && !settlementLag && availableForWithdrawal > 0 && (
               <div className="rounded-lg border border-blue-200 bg-blue-50 p-3 text-sm text-blue-900">
-                Withdrawals reserve {formatNaira(feeReserve)} for Nomba transfer fees. You can withdraw up to {formatNaira(availableForWithdrawal)} from this campaign without needing Nomba dashboard access.
+                A payout of {formatNaira(availableForWithdrawal)} needs {formatNaira(availableForWithdrawal + feeReserve)} in the Nomba wallet ({formatNaira(availableForWithdrawal)} to you + {formatNaira(feeReserve)} transfer fee).
+              </div>
+            )}
+            {availableForWithdrawal <= 0 && nombaBalanceAvailable && campaignAvailable > feeReserve && (
+              <div className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">
+                There is not enough settled balance in Nomba to pay out from this campaign yet. Wait for incoming transfers to settle, then try again.
               </div>
             )}
             {!payoutAccounts?.length ? (
@@ -301,7 +318,7 @@ export default function CampaignDetailClient() {
                   value={withdrawalAmount}
                   onChange={(e) => setWithdrawalAmount(e.target.value)}
                 />
-                <Button onClick={handleWithdraw} disabled={!payoutId || availableForWithdrawal <= 0 || createWithdrawal.isPending}>
+                <Button onClick={handleWithdraw} disabled={!payoutId || availableForWithdrawal <= 0 || !nombaBalanceAvailable || createWithdrawal.isPending}>
                   Withdraw
                 </Button>
               </div>
