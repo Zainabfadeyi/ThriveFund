@@ -49,6 +49,8 @@ const endpoints: EndpointCase[] = [
   { method: 'POST', path: '/api/v1/auth/logout', auth: 'user', body: { refresh_token: 'refresh_123' } },
   { method: 'POST', path: '/api/v1/auth/forgot-password', body: { email: 'user@example.com' } },
   { method: 'POST', path: '/api/v1/auth/reset-password', body: { token: 'reset_123', password: 'Password1234567890' } },
+  { method: 'POST', path: '/api/v1/auth/verify-email', body: { token: 'verify_123' } },
+  { method: 'POST', path: '/api/v1/auth/resend-verification', body: { email: 'user@example.com' } },
   { method: 'GET', path: '/api/v1/auth/me', auth: 'user' },
 
   { method: 'GET', path: '/api/v1/users/me', auth: 'user' },

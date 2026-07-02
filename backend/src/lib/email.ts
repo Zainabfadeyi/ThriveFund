@@ -41,6 +41,7 @@ export async function sendEmail(options: SendEmailOptions): Promise<void> {
 const BRAND_GREEN = '#00A86B';
 const BRAND_DARK = '#0F172A';
 const MUTED_TEXT = '#64748B';
+const BORDER = '#E2E8F0';
 
 function escapeHtml(value: string) {
   return value
@@ -59,20 +60,80 @@ function button(label: string, href: string, color = BRAND_GREEN) {
     </a>`;
 }
 
+function money(amount: number) {
+  return `NGN ${amount.toLocaleString('en-NG', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+}
+
+function appLayout(preheader: string, body: string) {
+  return `
+    <div style="display:none;max-height:0;overflow:hidden;color:transparent">${escapeHtml(preheader)}</div>
+    <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background:#F8FAFC;padding:24px 0;font-family:Arial,sans-serif;color:${BRAND_DARK}">
+      <tr>
+        <td align="center">
+          <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="max-width:560px;background:#fff;border:1px solid ${BORDER};border-radius:12px;overflow:hidden">
+            <tr>
+              <td style="padding:24px 28px;border-bottom:1px solid ${BORDER}">
+                <div style="font-size:22px;font-weight:800;color:${BRAND_DARK}">ThriveFund</div>
+                <div style="font-size:13px;color:${MUTED_TEXT};margin-top:4px">Transparent campaign collections and reconciliation</div>
+              </td>
+            </tr>
+            <tr>
+              <td style="padding:28px">${body}</td>
+            </tr>
+            <tr>
+              <td style="padding:18px 28px;background:#F8FAFC;color:${MUTED_TEXT};font-size:12px;border-top:1px solid ${BORDER}">
+                ThriveFund sends this email for account security, campaign collection, and reconciliation activity.
+              </td>
+            </tr>
+          </table>
+        </td>
+      </tr>
+    </table>`;
+}
+
+function detailsTable(rows: Array<[string, string]>) {
+  return `
+    <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="border-collapse:collapse;margin:18px 0;border:1px solid ${BORDER};border-radius:8px;overflow:hidden">
+      ${rows.map(([label, value]) => `
+        <tr>
+          <td style="padding:11px 12px;color:${MUTED_TEXT};border-bottom:1px solid ${BORDER};width:38%">${escapeHtml(label)}</td>
+          <td style="padding:11px 12px;border-bottom:1px solid ${BORDER};font-weight:700">${escapeHtml(value)}</td>
+        </tr>`).join('')}
+    </table>`;
+}
+
+export function emailVerificationEmail(name: string, verificationLink: string, organizationName: string) {
+  const safeName = escapeHtml(name);
+  return {
+    subject: 'Verify your ThriveFund email',
+    html: appLayout(
+      'Verify your email address to finish setting up your ThriveFund organization portal.',
+      `
+        <p style="margin:0 0 12px">Hi ${safeName},</p>
+        <p style="margin:0 0 12px">Welcome to ThriveFund. Please verify your email address so we can trust account activity and send campaign notifications to the right owner.</p>
+        ${detailsTable([['Organization', organizationName]])}
+        ${button('Verify Email', verificationLink)}
+        <p style="word-break:break-all;color:${MUTED_TEXT};font-size:12px">${escapeHtml(verificationLink)}</p>
+        <p style="margin:18px 0 0;color:${MUTED_TEXT};font-size:13px">This link expires in 24 hours.</p>
+      `,
+    ),
+  };
+}
+
 export function passwordResetEmail(name: string, resetLink: string) {
   const safeName = escapeHtml(name);
   return {
     subject: 'Reset your ThriveFund password',
-    html: `
-      <div style="font-family:sans-serif;max-width:480px;margin:auto">
-        <h2 style="color:${BRAND_DARK}">ThriveFund</h2>
+    html: appLayout(
+      'Reset your ThriveFund password.',
+      `
         <p>Hi ${safeName},</p>
         <p>We received a request to reset your password. Click the button below — the link expires in <strong>1 hour</strong>.</p>
         ${button('Reset Password', resetLink)}
-        <p style="word-break:break-all;color:#555">${escapeHtml(resetLink)}</p>
+        <p style="word-break:break-all;color:${MUTED_TEXT};font-size:12px">${escapeHtml(resetLink)}</p>
         <p>If you didn't request this, you can safely ignore this email.</p>
-        <p style="color:${MUTED_TEXT};font-size:12px">ThriveFund · transparent payment operations</p>
-      </div>`,
+      `,
+    ),
   };
 }
 
@@ -87,17 +148,17 @@ export function invitationEmail(
   const safeInviterName = escapeHtml(inviterName);
   return {
     subject: `${inviterName} invited you to contribute to "${goalTitle}"`,
-    html: `
-      <div style="font-family:sans-serif;max-width:480px;margin:auto">
-        <h2 style="color:${BRAND_DARK}">ThriveFund</h2>
+    html: appLayout(
+      `Invitation to contribute to ${goalTitle}.`,
+      `
         <p>Hi there,</p>
         <p><strong>${safeInviterName}</strong> has invited you to contribute to: <strong>${safeGoalTitle}</strong>.</p>
-        ${expectedAmount ? `<p><strong>Amount:</strong> ₦${expectedAmount.toLocaleString()}</p>` : ''}
+        ${expectedAmount ? detailsTable([['Expected amount', money(expectedAmount)]]) : ''}
         ${message ? `<blockquote style="border-left:3px solid ${BRAND_GREEN};padding-left:12px;color:#555">${escapeHtml(message)}</blockquote>` : ''}
         ${button('View Contribution Details', contributionLink)}
-        <p style="word-break:break-all;color:#555">${escapeHtml(contributionLink)}</p>
-        <p style="color:${MUTED_TEXT};font-size:12px">ThriveFund · transparent payment operations</p>
-      </div>`,
+        <p style="word-break:break-all;color:${MUTED_TEXT};font-size:12px">${escapeHtml(contributionLink)}</p>
+      `,
+    ),
   };
 }
 
@@ -105,18 +166,18 @@ export function paymentReceivedEmail(payerName: string, amount: number, goalTitl
   const safePayerName = escapeHtml(payerName);
   const safeGoalTitle = escapeHtml(goalTitle);
   return {
-    subject: `Payment received: ₦${amount.toLocaleString()} for ${goalTitle}`,
-    html: `
-      <div style="font-family:sans-serif;max-width:480px;margin:auto">
-        <h2 style="color:${BRAND_DARK}">ThriveFund</h2>
+    subject: `Payment received: ${money(amount)} for ${goalTitle}`,
+    html: appLayout(
+      `Payment received for ${goalTitle}.`,
+      `
         <p>Good news! A payment has been received and reconciled automatically.</p>
-        <table style="width:100%;border-collapse:collapse;margin:16px 0">
-          <tr><td style="padding:8px;color:#666">Contributor</td><td style="padding:8px"><strong>${safePayerName}</strong></td></tr>
-          <tr><td style="padding:8px;color:#666">Amount</td><td style="padding:8px"><strong>₦${amount.toLocaleString()}</strong></td></tr>
-          <tr><td style="padding:8px;color:#666">Goal</td><td style="padding:8px"><strong>${safeGoalTitle}</strong></td></tr>
-        </table>
-        <p style="color:${MUTED_TEXT};font-size:12px">ThriveFund · transparent payment operations</p>
-      </div>`,
+        ${detailsTable([
+          ['Contributor', payerName],
+          ['Amount', money(amount)],
+          ['Campaign', goalTitle],
+        ])}
+      `,
+    ),
   };
 }
 
@@ -126,4 +187,41 @@ export async function sendPaymentReceivedEmail(
 ) {
   const template = paymentReceivedEmail(data.payerName, data.amount, data.goalTitle);
   await sendEmail({ to: { email: to }, subject: template.subject, html: template.html });
+}
+
+export function campaignCompletedEmail(goalTitle: string, amount: number, dashboardLink: string) {
+  const safeGoalTitle = escapeHtml(goalTitle);
+  return {
+    subject: `Campaign completed: ${goalTitle}`,
+    html: appLayout(
+      `${goalTitle} reached its target.`,
+      `
+        <p style="margin:0 0 12px">Your campaign target has been reached.</p>
+        ${detailsTable([
+          ['Campaign', goalTitle],
+          ['Collected', money(amount)],
+          ['Collection status', 'Completed / inactive'],
+        ])}
+        <p>The virtual account has been expired for new collections. Manual close-out remains under your control.</p>
+        ${button('Open Campaign', dashboardLink)}
+      `,
+    ),
+  };
+}
+
+export function webhookFailureEmail(eventType: string, reference: string, adminLink: string) {
+  return {
+    subject: `Webhook processing failed: ${eventType}`,
+    html: appLayout(
+      'Webhook processing needs admin attention.',
+      `
+        <p>A provider webhook could not be processed successfully.</p>
+        ${detailsTable([
+          ['Event type', eventType || 'unknown'],
+          ['Provider reference', reference || 'unknown'],
+        ])}
+        ${button('Open Admin Webhooks', adminLink, '#DC2626')}
+      `,
+    ),
+  };
 }

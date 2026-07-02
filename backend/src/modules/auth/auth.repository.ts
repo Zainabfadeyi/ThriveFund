@@ -8,7 +8,7 @@ export const authRepository = {
 
   async findUserById(id: string) {
     const rows = await query(
-      'SELECT id, full_name, email, role FROM users WHERE id = ?',
+      'SELECT id, full_name, email, role, email_verified_at FROM users WHERE id = ?',
       [id],
     );
     return rows[0] ?? null;
@@ -27,7 +27,7 @@ export const authRepository = {
       [data.id, data.full_name, data.email, data.password_hash, data.phone_number ?? null],
     );
     const rows = await query(
-      'SELECT id, full_name, email, role, created_at FROM users WHERE id = ?',
+      'SELECT id, full_name, email, role, email_verified_at, created_at FROM users WHERE id = ?',
       [data.id],
     );
     return rows[0];
@@ -90,7 +90,7 @@ export const authRepository = {
     }
 
     const users = await query(
-      'SELECT id, full_name, email, role, created_at FROM users WHERE id = ?',
+      'SELECT id, full_name, email, role, email_verified_at, created_at FROM users WHERE id = ?',
       [data.user.id],
     );
     const organizations = await query('SELECT * FROM organizations WHERE id = ?', [data.organization.id]);
@@ -141,5 +141,36 @@ export const authRepository = {
 
   async markPasswordResetUsed(token: string) {
     await execute('UPDATE password_resets SET used = 1 WHERE token = ?', [token]);
+  },
+
+  async insertEmailVerification(data: { token: string; user_id: string; expires_at: Date }) {
+    await execute(
+      'INSERT INTO email_verifications (token, user_id, expires_at) VALUES (?, ?, ?)',
+      [data.token, data.user_id, data.expires_at],
+    );
+  },
+
+  async findEmailVerification(token: string) {
+    const rows = await query(
+      `SELECT ev.*, u.email, u.full_name, u.email_verified_at
+       FROM email_verifications ev
+       JOIN users u ON u.id = ev.user_id
+       WHERE ev.token = ? AND ev.expires_at > NOW() AND ev.used = 0
+       LIMIT 1`,
+      [token],
+    );
+    return rows[0] ?? null;
+  },
+
+  async markEmailVerificationUsed(token: string) {
+    await execute('UPDATE email_verifications SET used = 1 WHERE token = ?', [token]);
+  },
+
+  async markEmailVerified(userId: string) {
+    await execute(
+      'UPDATE users SET email_verified_at = COALESCE(email_verified_at, NOW()), updated_at = NOW() WHERE id = ?',
+      [userId],
+    );
+    return this.findUserById(userId);
   },
 };

@@ -3,10 +3,18 @@ import jwt from 'jsonwebtoken';
 import { v4 as uuid } from 'uuid';
 import { env } from '../../config/env';
 import { Errors } from '../../lib/errors';
-import { sendEmail, passwordResetEmail } from '../../lib/email';
+import { sendEmail, passwordResetEmail, emailVerificationEmail } from '../../lib/email';
 import { authRepository } from './auth.repository';
 import { organizationsRepository } from '../organizations/organizations.repository';
-import type { RegisterInput, LoginInput, RefreshInput, ForgotPasswordInput, ResetPasswordInput } from './auth.schema';
+import type {
+  RegisterInput,
+  LoginInput,
+  RefreshInput,
+  ForgotPasswordInput,
+  ResetPasswordInput,
+  VerifyEmailInput,
+  ResendVerificationInput,
+} from './auth.schema';
 
 function signTokens(userId: string, role: string, email: string) {
   const access_token = jwt.sign({ sub: userId, role, email }, env.JWT_SECRET, {
@@ -65,8 +73,38 @@ export const authService = {
 
     const tokens = signTokens(user.id, user.role, user.email);
     await authRepository.insertRefreshToken(tokens.refresh_token, user.id);
+    await this.sendVerificationEmail(user.id, user.email, user.full_name, organization.name).catch(() => undefined);
 
     return { user, organization, tokens };
+  },
+
+  async sendVerificationEmail(userId: string, email: string, name: string, organizationName = 'your organization') {
+    const token = uuid().replace(/-/g, '');
+    const expires_at = new Date(Date.now() + 24 * 60 * 60 * 1000);
+    await authRepository.insertEmailVerification({ token, user_id: userId, expires_at });
+    const link = `${env.FRONTEND_URL}/verify-email?token=${encodeURIComponent(token)}`;
+    const { subject, html } = emailVerificationEmail(name, link, organizationName);
+    await sendEmail({ to: { email, name }, subject, html });
+  },
+
+  async verifyEmail(body: VerifyEmailInput) {
+    const verification = await authRepository.findEmailVerification(body.token);
+    if (!verification) throw Errors.validation('Invalid or expired verification token');
+
+    await authRepository.markEmailVerified(verification.user_id as string);
+    await authRepository.markEmailVerificationUsed(body.token);
+    return { verified: true };
+  },
+
+  async resendVerification(body: ResendVerificationInput) {
+    const user = await authRepository.findUserByEmail(body.email);
+    if (!user) return;
+    if (user.email_verified_at) return;
+    await this.sendVerificationEmail(
+      user.id as string,
+      user.email as string,
+      user.full_name as string,
+    ).catch(() => undefined);
   },
 
   async login(body: LoginInput) {

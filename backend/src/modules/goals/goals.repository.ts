@@ -158,7 +158,10 @@ export const goalsRepository = {
 
   async findCompletionState(goalId: string): Promise<GoalRow | null> {
     const rows = await query<GoalRow>(
-      'SELECT id, user_id, organization_id, title, current_amount, target_amount, status FROM goals WHERE id = ?',
+      `SELECT g.id, g.user_id, g.organization_id, g.title, g.current_amount, g.target_amount, g.status, u.email
+       FROM goals g
+       JOIN users u ON u.id = g.user_id
+       WHERE g.id = ?`,
       [goalId],
     );
     return rows[0] ?? null;

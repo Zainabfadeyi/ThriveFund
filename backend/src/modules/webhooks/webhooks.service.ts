@@ -8,6 +8,8 @@ import { webhooksRepository } from './webhooks.repository';
 import { paymentsService } from '../payments/payments.service';
 import { reconciliationService } from '../reconciliation/reconciliation.service';
 import { broadcastRealtime } from '../../lib/realtime';
+import { sendEmail, webhookFailureEmail } from '../../lib/email';
+import { env } from '../../config/env';
 
 interface NombaPayload {
   event?: string;
@@ -183,6 +185,19 @@ export const webhooksService = {
           message,
         },
       });
+      const admins = await webhooksRepository.listAdminRecipients().catch(() => []);
+      if (admins.length) {
+        const { subject, html } = webhookFailureEmail(
+          providerPayload.event,
+          providerPayload.providerReference,
+          `${env.FRONTEND_URL}/admin`,
+        );
+        await sendEmail({
+          to: admins.map((admin) => ({ email: admin.email, name: admin.full_name })),
+          subject,
+          html,
+        }).catch(() => undefined);
+      }
       throw err;
     }
   },

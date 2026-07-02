@@ -7,6 +7,8 @@ import {
   refreshSchema,
   forgotPasswordSchema,
   resetPasswordSchema,
+  resendVerificationSchema,
+  verifyEmailSchema,
 } from './auth.schema';
 
 export const authController = {
@@ -55,6 +57,22 @@ export const authController = {
       const body = resetPasswordSchema.parse(req.body);
       await authService.resetPassword(body);
       ok(res, { message: 'Password updated successfully.' });
+    } catch (err) { next(err); }
+  },
+
+  async verifyEmail(req: Request, res: Response, next: NextFunction) {
+    try {
+      const body = verifyEmailSchema.parse(req.body);
+      const data = await authService.verifyEmail(body);
+      ok(res, data);
+    } catch (err) { next(err); }
+  },
+
+  async resendVerification(req: Request, res: Response, next: NextFunction) {
+    try {
+      const body = resendVerificationSchema.parse(req.body);
+      await authService.resendVerification(body);
+      ok(res, { message: 'If that email is registered and unverified, a verification link has been sent.' });
     } catch (err) { next(err); }
   },
 

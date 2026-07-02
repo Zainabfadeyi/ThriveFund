@@ -66,7 +66,7 @@ export default function SignupPage() {
         organization_phone: form.organization_phone || undefined,
         organization_address: form.organization_address || undefined,
       });
-      toast.success('Account created!');
+      toast.success('Account created. Check your email for the verification link.');
     } catch (err) {
       toast.error(getAuthErrorMessage(err));
     } finally {

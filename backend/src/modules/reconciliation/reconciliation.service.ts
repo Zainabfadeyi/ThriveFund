@@ -9,7 +9,8 @@ import { transactionsRepository } from '../transactions/transactions.repository'
 import { goalsRepository } from '../goals/goals.repository';
 import { notificationsRepository } from '../notifications/notifications.repository';
 import { webhooksRepository } from '../webhooks/webhooks.repository';
-import { sendPaymentReceivedEmail } from '../../lib/email';
+import { sendEmail, sendPaymentReceivedEmail, campaignCompletedEmail } from '../../lib/email';
+import { env } from '../../config/env';
 import { execute } from '../../config/database';
 import { getPaymentProvider } from '../../providers/payment';
 import { broadcastRealtime } from '../../lib/realtime';
@@ -161,6 +162,19 @@ export const reconciliationService = {
       title: 'Campaign target reached',
       body: `${goal.title as string} reached its target and the collection account was expired.`,
     });
+
+    if (goal.email) {
+      const { subject, html } = campaignCompletedEmail(
+        goal.title as string,
+        currentAmount,
+        `${env.FRONTEND_URL}/dashboard/campaigns/${goalId}`,
+      );
+      await sendEmail({
+        to: { email: goal.email as string },
+        subject,
+        html,
+      }).catch(() => undefined);
+    }
 
     await logAudit({
       action: AuditAction.GoalCompleted,

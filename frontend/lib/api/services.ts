@@ -42,6 +42,10 @@ export const authApi = {
     apiRequest<{ user: User; tokens: AuthTokens }>('/auth/login', { method: 'POST', body: JSON.stringify(body), skipAuth: true }),
   logout: (refresh_token: string) =>
     apiRequest<void>('/auth/logout', { method: 'POST', body: JSON.stringify({ refresh_token }) }),
+  verifyEmail: (token: string) =>
+    apiRequest<{ verified: boolean }>('/auth/verify-email', { method: 'POST', body: JSON.stringify({ token }), skipAuth: true }),
+  resendVerification: (email: string) =>
+    apiRequest<{ message: string }>('/auth/resend-verification', { method: 'POST', body: JSON.stringify({ email }), skipAuth: true }),
   me: () => apiRequest<User>('/auth/me'),
 };
 

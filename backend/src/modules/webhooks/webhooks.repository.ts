@@ -78,4 +78,14 @@ export const webhooksRepository = {
     const rows = await query('SELECT * FROM webhook_events WHERE provider_reference = ?', [ref]);
     return rows[0] ?? null;
   },
+
+  async listAdminRecipients() {
+    return query<{ email: string; full_name: string }>(
+      `SELECT email, full_name
+       FROM users
+       WHERE role = 'admin'
+       ORDER BY created_at ASC
+       LIMIT 10`,
+    );
+  },
 };

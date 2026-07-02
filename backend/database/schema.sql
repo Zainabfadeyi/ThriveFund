@@ -15,6 +15,7 @@ CREATE TABLE IF NOT EXISTS users (
   phone_number  VARCHAR(20)   NULL,
   password_hash VARCHAR(255)  NOT NULL,
   role          ENUM('user','admin') NOT NULL DEFAULT 'user',
+  email_verified_at DATETIME   NULL,
   created_at    DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP,
   updated_at    DATETIME      NULL     ON UPDATE CURRENT_TIMESTAMP,
   PRIMARY KEY (id),
@@ -83,6 +84,19 @@ CREATE TABLE IF NOT EXISTS password_resets (
   created_at DATETIME        NOT NULL DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY (id),
   UNIQUE KEY uq_password_resets_token (token(255)),
+  FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+);
+
+CREATE TABLE IF NOT EXISTS email_verifications (
+  id         BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+  token      VARCHAR(512)    NOT NULL,
+  user_id    VARCHAR(36)     NOT NULL,
+  used       TINYINT(1)      NOT NULL DEFAULT 0,
+  expires_at DATETIME        NOT NULL,
+  created_at DATETIME        NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (id),
+  UNIQUE KEY uq_email_verifications_token (token(255)),
+  KEY idx_email_verifications_user (user_id),
   FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
 );
 
