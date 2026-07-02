@@ -37,6 +37,10 @@ jobs:
         working-directory: backend
         run: npm run type-check
 
+      - name: Test
+        working-directory: backend
+        run: npm test
+
       - name: Build
         working-directory: backend
         run: npm run build
@@ -78,6 +82,7 @@ jobs:
             # Install deps and build
             cd backend
             npm ci --include=dev
+            npm run migrate
             npm run build
 
             # Reload with PM2 (zero-downtime)

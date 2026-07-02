@@ -7,6 +7,7 @@
     "dev": "ts-node-dev --respawn --transpile-only --exit-child src/server.ts",
     "build": "tsc",
     "start": "node dist/server.js",
+    "migrate": "node scripts/run-migrations.js",
     "type-check": "tsc --noEmit",
     "test": "node --test --require ts-node/register/transpile-only tests/**/*.test.ts"
   },
