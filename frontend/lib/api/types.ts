@@ -92,6 +92,7 @@ export interface Goal {
   completed_at?: string | null;
   closed_at?: string | null;
   created_at?: string;
+  owner_email?: string;
   virtual_account?: VirtualAccount | null;
 }
 
@@ -155,6 +156,7 @@ export interface Transaction {
   paid_at?: string;
   goal_title?: string;
   organization_name?: string;
+  owner_email?: string;
   reconciliation_status?: string;
 }
 
@@ -252,11 +254,31 @@ export interface ContributorSummary {
 
 export interface AdminOverview {
   total_users: number;
+  total_organizations?: number;
   total_goals: number;
   total_transactions: number;
   total_volume_ngn?: number;
+  total_withdrawals?: number;
+  total_payouts_ngn?: number;
   pending_reconciliation?: number;
+  failed_webhooks_24h?: number;
   reconciliation: ReconciliationOverview;
+}
+
+export interface AdminUser extends User {
+  organizations_count?: number;
+  campaigns_count?: number;
+  total_collected?: number;
+}
+
+export interface AdminWithdrawal extends Withdrawal {
+  goal_title?: string;
+  owner_email?: string;
+  owner_name?: string;
+  organization_name?: string;
+  bank_name?: string;
+  account_number?: string;
+  account_name?: string;
 }
 
 export interface RealtimeEvent {

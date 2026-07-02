@@ -1,4 +1,5 @@
 import { Errors } from '../../lib/errors';
+import { buildMeta, parsePagination } from '../../shared/utils/pagination';
 import { adminRepository } from './admin.repository';
 import { webhooksRepository } from '../webhooks/webhooks.repository';
 import { reconciliationService } from '../reconciliation/reconciliation.service';
@@ -48,9 +49,12 @@ export const adminService = {
   },
 
   async listUsers(query: { page?: number; per_page?: number }) {
-    const page = query.page ?? 1;
-    const perPage = Math.min(query.per_page ?? 20, 100);
-    return adminRepository.listUsers(page, perPage);
+    const { page, per_page } = parsePagination(query);
+    const [rows, total] = await Promise.all([
+      adminRepository.listUsers(page, per_page),
+      adminRepository.countUsers(),
+    ]);
+    return { data: rows, meta: buildMeta(page, per_page, total) };
   },
 
   async listGoals(query: { page?: number; per_page?: number }) {
@@ -60,9 +64,14 @@ export const adminService = {
   },
 
   async listOrganizations(query: { q?: string; type?: string; page?: number; per_page?: number }) {
-    const page = query.page ?? 1;
-    const perPage = Math.min(query.per_page ?? 20, 100);
-    return adminRepository.listOrganizations({ q: query.q, type: query.type, page, perPage });
+    const { page, per_page } = parsePagination(query);
+    const { rows, total } = await adminRepository.listOrganizations({
+      q: query.q,
+      type: query.type,
+      page,
+      perPage: per_page,
+    });
+    return { data: rows, meta: buildMeta(page, per_page, total) };
   },
 
   async getOrganization(id: string) {
@@ -84,15 +93,15 @@ export const adminService = {
     status?: string;
     q?: string;
   }) {
-    const page = query.page ?? 1;
-    const perPage = Math.min(query.per_page ?? 20, 100);
-    return adminRepository.listGoalsEnhanced({
+    const { page, per_page } = parsePagination(query);
+    const { rows, total } = await adminRepository.listGoalsEnhanced({
       page,
-      perPage,
+      perPage: per_page,
       organization_id: query.organization_id,
       status: query.status,
       q: query.q,
     });
+    return { data: rows, meta: buildMeta(page, per_page, total) };
   },
 
   async updateGoalStatus(goalId: string, body: { status?: string }) {
@@ -110,8 +119,19 @@ export const adminService = {
   },
 
   async listTransactions(query: { page?: number; per_page?: number }) {
-    const page = query.page ?? 1;
-    const perPage = Math.min(query.per_page ?? 20, 100);
-    return adminRepository.listTransactions(page, perPage);
+    const { page, per_page } = parsePagination(query);
+    const [rows, total] = await Promise.all([
+      adminRepository.listTransactions(page, per_page),
+      adminRepository.countTransactions(),
+    ]);
+    return { data: rows, meta: buildMeta(page, per_page, total) };
+  },
+
+  async listWithdrawals(query: { page?: number; per_page?: number; status?: string }) {
+    const { page, per_page } = parsePagination(query);
+    const { rows, total } = await adminRepository.listWithdrawals(page, per_page, {
+      status: query.status,
+    });
+    return { data: rows, meta: buildMeta(page, per_page, total) };
   },
 };

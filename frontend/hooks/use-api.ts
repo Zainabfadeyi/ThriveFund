@@ -57,6 +57,7 @@ export const queryKeys = {
   adminWebhooks: (params?: object) => ['admin-webhooks', params] as const,
   adminReconciliation: (params?: object) => ['admin-reconciliation', params] as const,
   adminUsers: (params?: object) => ['admin-users', params] as const,
+  adminWithdrawals: (params?: object) => ['admin-withdrawals', params] as const,
   publicGoal: (slug: string) => ['public-goal', slug] as const,
   publicVa: (slug: string) => ['public-va', slug] as const,
   banks: ['banks'] as const,
@@ -424,7 +425,20 @@ export function useAdminReconciliation(params?: { status?: string; page?: number
 export function useAdminUsers(params?: { page?: number }) {
   return useQuery({
     queryKey: queryKeys.adminUsers(params),
-    queryFn: async () => (await adminApi.users(params)).data,
+    queryFn: async () => {
+      const res = await adminApi.users(params);
+      return { data: res.data, meta: res.meta };
+    },
+  });
+}
+
+export function useAdminWithdrawals(params?: { page?: number; status?: string }) {
+  return useQuery({
+    queryKey: queryKeys.adminWithdrawals(params),
+    queryFn: async () => {
+      const res = await adminApi.withdrawals(params);
+      return { data: res.data, meta: res.meta };
+    },
   });
 }
 

@@ -57,7 +57,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const { data } = await authApi.login({ email, password });
     setTokens(data.tokens);
     setUser(data.user);
-    router.push('/dashboard');
+    router.push(data.user.role === 'admin' ? '/admin' : '/dashboard');
   }, [router]);
 
   const register = useCallback(async (data: {

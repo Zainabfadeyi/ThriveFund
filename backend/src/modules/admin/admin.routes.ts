@@ -25,3 +25,4 @@ adminRouter.get('/goals', adminController.listGoals);
 adminRouter.patch('/goals/:id/status', adminController.updateGoalStatus);
 adminRouter.get('/goals/:id/export', adminController.exportGoal);
 adminRouter.get('/transactions', adminController.listTransactions);
+adminRouter.get('/withdrawals', adminController.listWithdrawals);

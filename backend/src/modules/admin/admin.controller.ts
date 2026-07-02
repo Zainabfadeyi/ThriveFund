@@ -49,33 +49,36 @@ export const adminController = {
 
   async listUsers(req: Request, res: Response, next: NextFunction) {
     try {
-      const data = await adminService.listUsers({ page: Number(req.query.page ?? 1) });
-      ok(res, data);
+      const { data, meta } = await adminService.listUsers({
+        page: req.query.page ? Number(req.query.page) : undefined,
+        per_page: req.query.per_page ? Number(req.query.per_page) : undefined,
+      });
+      ok(res, data, meta);
     } catch (err) { next(err); }
   },
 
   async listGoals(req: Request, res: Response, next: NextFunction) {
     try {
-      const data = await adminService.listGoalsEnhanced({
-        page: Number(req.query.page ?? 1),
+      const { data, meta } = await adminService.listGoalsEnhanced({
+        page: req.query.page ? Number(req.query.page) : undefined,
         per_page: req.query.per_page ? Number(req.query.per_page) : undefined,
         organization_id: req.query.organization_id as string | undefined,
         status: req.query.status as string | undefined,
         q: req.query.q as string | undefined,
       });
-      ok(res, data);
+      ok(res, data, meta);
     } catch (err) { next(err); }
   },
 
   async listOrganizations(req: Request, res: Response, next: NextFunction) {
     try {
-      const data = await adminService.listOrganizations({
+      const { data, meta } = await adminService.listOrganizations({
         q: req.query.q as string | undefined,
         type: req.query.type as string | undefined,
         page: req.query.page ? Number(req.query.page) : undefined,
         per_page: req.query.per_page ? Number(req.query.per_page) : undefined,
       });
-      ok(res, data);
+      ok(res, data, meta);
     } catch (err) { next(err); }
   },
 
@@ -103,8 +106,22 @@ export const adminController = {
 
   async listTransactions(req: Request, res: Response, next: NextFunction) {
     try {
-      const data = await adminService.listTransactions({ page: Number(req.query.page ?? 1) });
-      ok(res, data);
+      const { data, meta } = await adminService.listTransactions({
+        page: req.query.page ? Number(req.query.page) : undefined,
+        per_page: req.query.per_page ? Number(req.query.per_page) : undefined,
+      });
+      ok(res, data, meta);
+    } catch (err) { next(err); }
+  },
+
+  async listWithdrawals(req: Request, res: Response, next: NextFunction) {
+    try {
+      const { data, meta } = await adminService.listWithdrawals({
+        page: req.query.page ? Number(req.query.page) : undefined,
+        per_page: req.query.per_page ? Number(req.query.per_page) : undefined,
+        status: req.query.status as string | undefined,
+      });
+      ok(res, data, meta);
     } catch (err) { next(err); }
   },
 };

@@ -1,6 +1,8 @@
 import { apiRequest } from './client';
 import type {
   AdminOverview,
+  AdminUser,
+  AdminWithdrawal,
   AuthPayload,
   AuthTokens,
   Bank,
@@ -193,9 +195,11 @@ export const adminApi = {
     apiRequest<Goal>(`/admin/goals/${id}/status`, { method: 'PATCH', body: JSON.stringify({ status }) }),
   exportGoalCsv: (id: string) => apiRequest<string | Blob>(`/admin/goals/${id}/export`, { params: { format: 'csv' } }),
   transactions: (params?: { page?: number; per_page?: number }) => apiRequest<Transaction[]>('/admin/transactions', { params }),
+  withdrawals: (params?: { page?: number; per_page?: number; status?: string }) =>
+    apiRequest<AdminWithdrawal[]>('/admin/withdrawals', { params }),
   webhookEvents: (params?: { processed?: boolean; event_type?: string; page?: number; per_page?: number }) =>
     apiRequest<unknown[]>('/admin/webhook-events', { params }),
   reconciliation: (params?: { status?: string; page?: number; per_page?: number }) =>
     apiRequest<ReconciliationRecord[]>('/admin/reconciliation', { params }),
-  users: (params?: { page?: number; per_page?: number }) => apiRequest<User[]>('/admin/users', { params }),
+  users: (params?: { page?: number; per_page?: number }) => apiRequest<AdminUser[]>('/admin/users', { params }),
 };

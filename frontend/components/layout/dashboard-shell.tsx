@@ -11,7 +11,6 @@ import {
   Users,
   FileText,
   Mail,
-  Shield,
   PanelLeftClose,
   PanelLeft,
   LogOut,
@@ -53,6 +52,10 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     if (!loading && !user) {
       router.replace('/login');
+      return;
+    }
+    if (!loading && user?.role === 'admin') {
+      router.replace('/admin');
     }
   }, [loading, user, router]);
 
@@ -131,25 +134,6 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
               </Link>
             );
           })}
-
-          {user.role === 'admin' && (
-            <>
-              <div className="my-3 border-t border-white/10" />
-              <Link
-                href="/admin"
-                onClick={() => window.innerWidth < 1024 && setOpen(false)}
-                className={cn(
-                  'flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm transition-all',
-                  pathname === '/admin' || pathname.startsWith('/admin/')
-                    ? 'bg-primary text-white'
-                    : 'text-slate-400 hover:bg-white/10 hover:text-white',
-                )}
-              >
-                <Shield size={18} className="shrink-0" />
-                {open && <span className="flex-1 font-medium">Admin</span>}
-              </Link>
-            </>
-          )}
         </nav>
 
         {open && (

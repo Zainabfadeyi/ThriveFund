@@ -4,21 +4,33 @@ export const adminRepository = {
   async getPlatformStats() {
     const rows = await query(
       `SELECT
-         (SELECT COUNT(*) FROM users)                                                            AS total_users,
-         (SELECT COUNT(*) FROM goals)                                                            AS total_goals,
-         (SELECT COUNT(*) FROM transactions)                                                     AS total_transactions,
-         (SELECT COALESCE(SUM(amount), 0) FROM transactions WHERE status = 'successful')        AS total_volume_ngn,
-         (SELECT COUNT(*) FROM webhook_events WHERE processed = 0)                              AS pending_reconciliation,
+         (SELECT COUNT(*) FROM users WHERE role != 'admin')                     AS total_users,
+         (SELECT COUNT(*) FROM organizations)                                   AS total_organizations,
+         (SELECT COUNT(*) FROM goals)                                           AS total_goals,
+         (SELECT COUNT(*) FROM transactions)                                    AS total_transactions,
+         (SELECT COALESCE(SUM(amount), 0) FROM transactions WHERE status = 'successful') AS total_volume_ngn,
+         (SELECT COUNT(*) FROM withdrawals)                                     AS total_withdrawals,
+         (SELECT COALESCE(SUM(amount), 0) FROM withdrawals WHERE status = 'successful') AS total_payouts_ngn,
+         (SELECT COUNT(*) FROM webhook_events WHERE processed = 0)               AS pending_reconciliation,
          (SELECT COUNT(*) FROM webhook_events
-            WHERE processed = 0 AND received_at >= DATE_SUB(NOW(), INTERVAL 24 HOUR))           AS failed_webhooks_24h`,
+            WHERE processed = 0 AND received_at >= DATE_SUB(NOW(), INTERVAL 24 HOUR)) AS failed_webhooks_24h`,
     );
     return rows[0];
   },
 
+  async countUsers() {
+    const rows = await query<{ total: number }>('SELECT COUNT(*) AS total FROM users');
+    return Number(rows[0].total);
+  },
+
   async listUsers(page: number, perPage: number) {
     return query(
-      `SELECT id, full_name, email, role, created_at
-       FROM users ORDER BY created_at DESC LIMIT ? OFFSET ?`,
+      `SELECT u.id, u.full_name, u.email, u.role, u.created_at,
+              (SELECT COUNT(*) FROM organizations WHERE owner_id = u.id) AS organizations_count,
+              (SELECT COUNT(*) FROM goals WHERE user_id = u.id) AS campaigns_count,
+              (SELECT COALESCE(SUM(current_amount), 0) FROM goals WHERE user_id = u.id) AS total_collected
+       FROM users u
+       ORDER BY u.created_at DESC LIMIT ? OFFSET ?`,
       [perPage, (page - 1) * perPage],
     );
   },
@@ -169,15 +181,56 @@ export const adminRepository = {
     return rows[0] ?? null;
   },
 
+  async countTransactions() {
+    const rows = await query<{ total: number }>('SELECT COUNT(*) AS total FROM transactions');
+    return Number(rows[0].total);
+  },
+
   async listTransactions(page: number, perPage: number) {
     return query(
-      `SELECT t.id, t.reference, t.amount, t.status, t.paid_at,
-              g.title AS goal_title, u.email AS owner_email
+      `SELECT t.id, t.reference, t.contributor_name, t.amount, t.status, t.paid_at,
+              g.title AS goal_title, o.name AS organization_name, u.email AS owner_email
        FROM transactions t
        JOIN goals g ON g.id = t.goal_id
        JOIN users u ON u.id = g.user_id
+       LEFT JOIN organizations o ON o.id = g.organization_id
        ORDER BY t.paid_at DESC LIMIT ? OFFSET ?`,
       [perPage, (page - 1) * perPage],
     );
+  },
+
+  async countWithdrawals() {
+    const rows = await query<{ total: number }>('SELECT COUNT(*) AS total FROM withdrawals');
+    return Number(rows[0].total);
+  },
+
+  async listWithdrawals(page: number, perPage: number, filters?: { status?: string }) {
+    const conditions: string[] = [];
+    const values: unknown[] = [];
+    if (filters?.status) {
+      conditions.push('w.status = ?');
+      values.push(filters.status);
+    }
+    const where = conditions.length ? `WHERE ${conditions.join(' AND ')}` : '';
+    const countRows = await query<{ total: number }>(
+      `SELECT COUNT(*) AS total FROM withdrawals w ${where}`,
+      values,
+    );
+    const rows = await query(
+      `SELECT w.id, w.amount, w.status, w.fee, w.provider_reference, w.failure_reason,
+              w.created_at, w.processed_at,
+              g.title AS goal_title, u.email AS owner_email, u.full_name AS owner_name,
+              o.name AS organization_name,
+              pa.bank_name, pa.account_number, pa.account_name
+       FROM withdrawals w
+       JOIN goals g ON g.id = w.goal_id
+       JOIN users u ON u.id = w.user_id
+       LEFT JOIN organizations o ON o.id = g.organization_id
+       JOIN payout_accounts pa ON pa.id = w.payout_account_id
+       ${where}
+       ORDER BY w.created_at DESC LIMIT ? OFFSET ?`,
+      [...values, perPage, (page - 1) * perPage],
+    );
+    return { rows, total: Number(countRows[0].total) };
   },
 };
