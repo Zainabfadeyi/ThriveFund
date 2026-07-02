@@ -1,3 +1,6 @@
 name = "thrivefund2"
 compatibility_date = "2024-09-23"
-assets = { directory = "./out" }
+
+[assets]
+directory = "./out"
+not_found_handling = "single-page-application"
