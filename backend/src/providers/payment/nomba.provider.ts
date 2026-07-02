@@ -102,11 +102,14 @@ type NombaBankLookup = {
   account_name?: string;
 };
 
-function unwrapNombaBanks(data: unknown): NombaBank[] {
-  if (Array.isArray(data)) return data;
-  if (data && typeof data === 'object' && Array.isArray((data as NombaBanksList).results)) {
-    return (data as NombaBanksList).results ?? [];
-  }
+function unwrapNombaBanks(payload: unknown): NombaBank[] {
+  if (Array.isArray(payload)) return payload;
+  if (!payload || typeof payload !== 'object') return [];
+
+  const obj = payload as Record<string, unknown>;
+  if (Array.isArray(obj.results)) return obj.results as NombaBank[];
+  if (obj.data !== undefined) return unwrapNombaBanks(obj.data);
+
   return [];
 }
 
@@ -389,7 +392,7 @@ export class NombaProvider implements PaymentProvider {
     const response = await this.request<NombaBanksList | NombaBank[]>('/v1/transfers/banks', {
       method: 'GET',
     });
-    const banks = unwrapNombaBanks(response.data ?? response.results ?? response);
+    const banks = unwrapNombaBanks(response);
     const mapped = banks
       .filter((bank): bank is { code: string; name: string } => Boolean(bank.code && bank.name))
       .map((bank) => ({ code: bank.code, name: bank.name }));
