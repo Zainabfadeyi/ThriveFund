@@ -12,14 +12,6 @@ const CATEGORIES = [
   { slug: 'personal',          label: 'Personal' },
 ];
 
-const BANKS = [
-  { code: 'first_bank', name: 'First Bank' },
-  { code: 'gtbank',     name: 'GTBank' },
-  { code: 'zenith',     name: 'Zenith Bank' },
-  { code: 'uba',        name: 'UBA' },
-  { code: 'access',     name: 'Access Bank' },
-];
-
 const FAQS = [
   { question: 'What is ThriveFund?',              answer: 'A platform for goal-based savings and group contributions using dedicated virtual accounts.' },
   { question: 'Which banks are supported?',        answer: 'First Bank, GTBank, Zenith Bank, UBA, and Access Bank.' },
@@ -34,8 +26,7 @@ export const contentController = {
 
   async banks(_req: Request, res: Response, next: NextFunction) {
     try {
-      const banks = await getPaymentProvider().listBanks();
-      ok(res, banks.length ? banks : BANKS);
+      ok(res, await getPaymentProvider().listBanks());
     } catch (err) { next(err); }
   },
 

@@ -47,6 +47,31 @@ test('NombaProvider sanitizes virtual account payload and maps successful bank d
   assert.equal(requestBody.accountName, 'ThriveFund School Fees');
 });
 
+test('NombaProvider maps bank list when data is a direct array', async () => {
+  (globalThis as unknown as { fetch: typeof fetch }).fetch = async (url) => {
+    if (String(url).endsWith('/v1/auth/token/issue')) {
+      return jsonResponse({ data: { access_token: 'token_123' } });
+    }
+
+    return jsonResponse({
+      code: '00',
+      description: 'Success',
+      data: [
+        { code: '058', name: 'Guaranty Trust Bank' },
+        { code: '011', name: 'First Bank of Nigeria' },
+      ],
+    });
+  };
+
+  const { NombaProvider } = await import('../src/providers/payment/nomba.provider');
+  const provider = new NombaProvider();
+
+  const banks = await provider.listBanks();
+  assert.equal(banks.length, 2);
+  assert.equal(banks[0]?.code, '058');
+  assert.equal(banks[1]?.name, 'First Bank of Nigeria');
+});
+
 test('NombaProvider treats provider-level validation errors as provider failures', async () => {
   (globalThis as unknown as { fetch: typeof fetch }).fetch = async (url, init) => {
     if (String(url).endsWith('/v1/auth/token/issue')) {

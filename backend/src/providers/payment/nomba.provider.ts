@@ -89,14 +89,26 @@ type NombaExpireVirtualAccount = {
   expired?: boolean;
 };
 
+type NombaBank = { code?: string; name?: string };
+
 type NombaBanksList = {
-  results?: Array<{ code?: string; name?: string }>;
+  results?: NombaBank[];
 };
 
 type NombaBankLookup = {
   accountNumber?: string;
   accountName?: string;
+  account_number?: string;
+  account_name?: string;
 };
+
+function unwrapNombaBanks(data: unknown): NombaBank[] {
+  if (Array.isArray(data)) return data;
+  if (data && typeof data === 'object' && Array.isArray((data as NombaBanksList).results)) {
+    return (data as NombaBanksList).results ?? [];
+  }
+  return [];
+}
 
 type NombaWebhookPayload = {
   event_type?: string;
@@ -374,11 +386,27 @@ export class NombaProvider implements PaymentProvider {
   }
 
   async listBanks(): Promise<Bank[]> {
-    const response = await this.request<NombaBanksList>('/v1/transfers/banks', { method: 'GET' });
-    const banks = response.data?.results ?? response.results ?? [];
-    return banks
+    const response = await this.request<NombaBanksList | NombaBank[]>('/v1/transfers/banks', {
+      method: 'GET',
+    });
+    const banks = unwrapNombaBanks(response.data ?? response.results ?? response);
+    const mapped = banks
       .filter((bank): bank is { code: string; name: string } => Boolean(bank.code && bank.name))
       .map((bank) => ({ code: bank.code, name: bank.name }));
+
+    if (!mapped.length) {
+      throw Errors.provider('Nomba bank list response did not include any supported banks', {
+        provider: PaymentProviderName.Nomba,
+        environment: env.NOMBA_ENVIRONMENT,
+        scope: env.NOMBA_VIRTUAL_ACCOUNT_SCOPE,
+        method: 'GET',
+        path: '/v1/transfers/banks',
+        dataKeys: responseKeys(response.data),
+        responseKeys: responseKeys(response),
+      } satisfies NombaErrorDetails);
+    }
+
+    return mapped;
   }
 
   async lookupBankAccount(accountNumber: string, bankCode: string): Promise<BankAccountLookupResult> {
@@ -387,12 +415,14 @@ export class NombaProvider implements PaymentProvider {
       body: { accountNumber, bankCode },
     });
     const data = response.data ?? response;
-    if (!data.accountNumber || !data.accountName) {
+    const resolvedAccountNumber = data.accountNumber ?? data.account_number;
+    const resolvedAccountName = data.accountName ?? data.account_name;
+    if (!resolvedAccountNumber || !resolvedAccountName) {
       throw Errors.provider('Nomba bank account lookup response did not include account details');
     }
     return {
-      accountNumber: data.accountNumber,
-      accountName: data.accountName,
+      accountNumber: resolvedAccountNumber,
+      accountName: resolvedAccountName,
       bankCode,
     };
   }
