@@ -29,6 +29,8 @@ export default function LoginPage() {
   };
 
   return (
+
+    
     <div className="flex min-h-screen items-center justify-center bg-[#F8FAFC] px-4">
       <div className="w-full max-w-md space-y-8">
         <div className="flex justify-center"><Logo /></div>
