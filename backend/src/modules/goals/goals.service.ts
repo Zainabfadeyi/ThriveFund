@@ -15,6 +15,7 @@ import { transactionsRepository } from '../transactions/transactions.repository'
 import { organizationsRepository } from '../organizations/organizations.repository';
 import { virtualAccountsRepository } from '../virtual-accounts/virtual-accounts.repository';
 import type { CreateGoalInput, UpdateGoalInput, CloseOutGoalInput } from './goals.schema';
+import { enrichGoalWithPayoutFee } from '../../lib/payout-fees';
 
 export const goalsService = {
   async create(userId: string, body: CreateGoalInput) {
@@ -24,7 +25,8 @@ export const goalsService = {
     }
 
     const id = `goal_${uuid().replace(/-/g, '').slice(0, 12)}`;
-    return goalsRepository.insert({ id, user_id: userId, ...body });
+    const goal = await goalsRepository.insert({ id, user_id: userId, ...body });
+    return enrichGoalWithPayoutFee(goal);
   },
 
   async list(userId: string, query: {
@@ -43,13 +45,13 @@ export const goalsService = {
       page,
       perPage,
     });
-    return { data: rows, meta: { page, per_page: perPage, total } };
+    return { data: rows.map((row) => enrichGoalWithPayoutFee(row)), meta: { page, per_page: perPage, total } };
   },
 
   async getById(userId: string, goalId: string) {
     const goal = await goalsRepository.findById(goalId, userId);
     if (!goal) throw Errors.notFound('Goal');
-    return goal;
+    return enrichGoalWithPayoutFee(goal);
   },
 
   async update(userId: string, goalId: string, body: UpdateGoalInput) {
@@ -63,7 +65,7 @@ export const goalsService = {
 
     const updated = await goalsRepository.update(goalId, userId, body as Record<string, unknown>);
     if (!updated) throw Errors.validation('No valid fields to update');
-    return updated;
+    return enrichGoalWithPayoutFee(updated);
   },
 
   async delete(userId: string, goalId: string) {
@@ -77,7 +79,7 @@ export const goalsService = {
   async close(userId: string, goalId: string) {
     const goal = await goalsRepository.updateStatus(goalId, userId, 'completed');
     if (!goal) throw Errors.notFound('Goal');
-    return goal;
+    return enrichGoalWithPayoutFee(goal);
   },
 
   async closeOut(userId: string, goalId: string, body: CloseOutGoalInput) {

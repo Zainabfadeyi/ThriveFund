@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { ArrowLeft, Building2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { PageHeader } from '@/components/shared/page-header';
@@ -11,8 +11,9 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { LoadingState } from '@/components/shared/query-states';
-import { useCreateGoal, useOrganizations } from '@/hooks/use-api';
+import { useCreateGoal, useOrganizations, usePayoutFeeInfo } from '@/hooks/use-api';
 import { getAuthErrorMessage } from '@/contexts/auth-context';
+import { formatNaira } from '@/lib/utils';
 
 const CATEGORIES = [
   { value: 'education', label: 'Education / Tuition' },
@@ -27,14 +28,22 @@ export default function NewCampaignPage() {
   const router = useRouter();
   const createGoal = useCreateGoal();
   const { data: organizations, isLoading: organizationsLoading } = useOrganizations();
+  const { data: payoutInfo } = usePayoutFeeInfo();
+  const transferFee = payoutInfo?.transfer_fee_ngn ?? 50;
   const [form, setForm] = useState({
     organization_id: '',
     title: '',
     description: '',
-    target_amount: '',
+    net_payout_amount: '',
     category: 'community_project',
     deadline: '',
   });
+
+  const netAmount = Number(form.net_payout_amount) || 0;
+  const collectionTarget = useMemo(
+    () => (netAmount > 0 ? netAmount + transferFee : 0),
+    [netAmount, transferFee],
+  );
 
   useEffect(() => {
     if (!form.organization_id && organizations?.length === 1) {
@@ -48,12 +57,16 @@ export default function NewCampaignPage() {
       toast.error('Choose an organization for this collection');
       return;
     }
+    if (netAmount < 1) {
+      toast.error('Enter the amount you want to receive after payout fees');
+      return;
+    }
     try {
       const res = await createGoal.mutateAsync({
         organization_id: form.organization_id,
         title: form.title,
         description: form.description || undefined,
-        target_amount: Number(form.target_amount),
+        target_amount: collectionTarget,
         category: form.category,
         deadline: form.deadline,
       });
@@ -101,7 +114,28 @@ export default function NewCampaignPage() {
               <SelectTrigger><SelectValue /></SelectTrigger>
               <SelectContent>{CATEGORIES.map((c) => <SelectItem key={c.value} value={c.value}>{c.label}</SelectItem>)}</SelectContent>
             </Select>
-            <Input type="number" placeholder="Target amount (₦)" value={form.target_amount} onChange={(e) => setForm({ ...form, target_amount: e.target.value })} required min={1} />
+            <div className="space-y-2">
+              <Input
+                type="number"
+                placeholder="Amount you want to receive (₦)"
+                value={form.net_payout_amount}
+                onChange={(e) => setForm({ ...form, net_payout_amount: e.target.value })}
+                required
+                min={1}
+              />
+              <div className="rounded-lg border border-primary/20 bg-primary/5 p-3 text-sm">
+                <p className="font-medium text-foreground">Collection target (what contributors pay)</p>
+                <p className="mt-1 text-muted-foreground">
+                  {collectionTarget > 0 ? (
+                    <>
+                      {formatNaira(collectionTarget)} = {formatNaira(netAmount)} for you + {formatNaira(transferFee)} Nomba transfer fee
+                    </>
+                  ) : (
+                    <>We add a {formatNaira(transferFee)} payout transfer fee so you receive your full target amount.</>
+                  )}
+                </p>
+              </div>
+            </div>
             <Input type="date" value={form.deadline} onChange={(e) => setForm({ ...form, deadline: e.target.value })} required />
             <Button type="submit" className="w-full" disabled={createGoal.isPending || !form.organization_id}>{createGoal.isPending ? 'Creating...' : 'Create Collection'}</Button>
           </form>

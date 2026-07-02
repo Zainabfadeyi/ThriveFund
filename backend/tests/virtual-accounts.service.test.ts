@@ -43,6 +43,7 @@ test('virtualAccountsService creates a provider account and persists organizatio
     validateWebhookSignature: () => true,
     healthCheck: async () => ({ status: 'ok' }),
     listBankTransactions: async () => ({ rows: [] }),
+    getAccountBalance: async () => 0,
   });
   audit.logAudit = async () => undefined;
 

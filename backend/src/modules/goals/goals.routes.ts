@@ -23,6 +23,7 @@ goalsRouter.post('/:id/close-out', goalsController.closeOut);
 goalsRouter.get('/:id/share', goalsController.getShareLink);
 goalsRouter.get('/:id/export', goalsController.exportCampaign);
 goalsRouter.get('/:id/withdrawals', withdrawalsController.listByGoal);
+goalsRouter.get('/:id/withdrawal-availability', withdrawalsController.availability);
 goalsRouter.post('/:id/withdraw', withdrawalsController.createForGoal);
 
 // Virtual account (nested)

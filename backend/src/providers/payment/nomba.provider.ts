@@ -515,14 +515,23 @@ export class NombaProvider implements PaymentProvider {
     }
   }
 
+  async getAccountBalance(): Promise<number> {
+    const path =
+      env.NOMBA_VIRTUAL_ACCOUNT_SCOPE === 'sub_account'
+        ? `/v1/accounts/${encodeURIComponent(requiredEnv('NOMBA_SUB_ACCOUNT_ID', this.subAccountId))}/balance`
+        : '/v1/accounts/balance';
+    const response = await this.request<{ amount?: string | number }>(path, { method: 'GET' });
+    const data = response.data ?? response;
+    return Number(data.amount ?? 0);
+  }
+
   async healthCheck() {
     try {
-      const path =
-        env.NOMBA_VIRTUAL_ACCOUNT_SCOPE === 'sub_account'
-          ? `/v1/accounts/${encodeURIComponent(requiredEnv('NOMBA_SUB_ACCOUNT_ID', this.subAccountId))}/balance`
-          : '/v1/accounts/balance';
-      await this.request(path, { method: 'GET' });
-      return { status: 'ok' as const, message: `Nomba ${env.NOMBA_ENVIRONMENT} API reachable` };
+      const balance = await this.getAccountBalance();
+      return {
+        status: 'ok' as const,
+        message: `Nomba ${env.NOMBA_ENVIRONMENT} API reachable · balance ₦${balance.toLocaleString()}`,
+      };
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Nomba health check failed';
       return { status: 'unavailable' as const, message };

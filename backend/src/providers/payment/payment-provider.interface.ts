@@ -120,4 +120,7 @@ export interface PaymentProvider {
 
   /** Health check for readiness probe */
   healthCheck(): Promise<{ status: 'ok' | 'unavailable'; message?: string }>;
+
+  /** Available settlement balance in naira (Nomba parent account). */
+  getAccountBalance(): Promise<number>;
 }

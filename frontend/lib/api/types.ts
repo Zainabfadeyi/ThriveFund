@@ -71,6 +71,11 @@ export interface Organization {
   recent_transactions?: Transaction[];
 }
 
+export interface PayoutFeeInfo {
+  transfer_fee_ngn: number;
+  description: string;
+}
+
 export interface Goal {
   id: string;
   user_id: string;
@@ -89,6 +94,9 @@ export interface Goal {
   progress_percent?: number;
   contributors_count?: number;
   remaining_amount?: number;
+  payout_fee_ngn?: number;
+  net_payout_target?: number;
+  estimated_net_available?: number;
   completed_at?: string | null;
   closed_at?: string | null;
   created_at?: string;

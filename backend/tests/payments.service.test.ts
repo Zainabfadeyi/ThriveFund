@@ -65,6 +65,7 @@ test('paymentsService verifies and stores successful provider payments', async (
     validateWebhookSignature: () => true,
     healthCheck: async () => ({ status: 'ok' }),
     listBankTransactions: async () => ({ rows: [] }),
+    getAccountBalance: async () => 0,
   });
   audit.logAudit = async () => undefined;
 

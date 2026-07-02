@@ -41,6 +41,8 @@ const schema = z.object({
   NOMBA_API_KEY: z.string().optional(),
   NOMBA_ACCOUNT_ID: z.string().optional(),
   NOMBA_WEBHOOK_SECRET: z.string().optional(),
+  /** Reserve this naira amount for Nomba transfer fees when calculating max payout. */
+  NOMBA_TRANSFER_FEE_NGN: z.coerce.number().default(50),
 }).superRefine((data, ctx) => {
   const required: Array<[keyof typeof data, boolean]> = [
     ['NOMBA_CLIENT_ID', Boolean(data.NOMBA_CLIENT_ID)],

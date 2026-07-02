@@ -28,6 +28,7 @@ import {
   usePayoutAccounts,
   useCreateWithdrawal,
   useGoalWithdrawals,
+  useGoalWithdrawalAvailability,
 } from '@/hooks/use-api';
 import { formatNaira, getInitials, downloadFile } from '@/lib/utils';
 import { getAuthErrorMessage } from '@/contexts/auth-context';
@@ -49,6 +50,7 @@ export default function CampaignDetailClient() {
   const { data: share } = useGoalShare(id);
   const { data: payoutAccounts } = usePayoutAccounts();
   const { data: withdrawals } = useGoalWithdrawals(id);
+  const { data: withdrawalAvailability } = useGoalWithdrawalAvailability(id);
   const createVa = useCreateVirtualAccount();
   const exportCampaign = useExportCampaign();
   const createWithdrawal = useCreateWithdrawal(id);
@@ -85,7 +87,13 @@ export default function CampaignDetailClient() {
   const reservedWithdrawals = (withdrawals ?? [])
     .filter((w) => ['pending', 'processing', 'successful'].includes(w.status))
     .reduce((sum, w) => sum + Number(w.amount), 0);
-  const availableForWithdrawal = Math.max(0, Number(campaign.current_amount) - reservedWithdrawals);
+  const campaignAvailable = Math.max(0, Number(campaign.current_amount) - reservedWithdrawals);
+  const feeReserve = campaign.payout_fee_ngn ?? withdrawalAvailability?.transfer_fee_reserve ?? 50;
+  const availableForWithdrawal = withdrawalAvailability?.max_withdrawable ?? Math.max(0, campaignAvailable - feeReserve);
+  const nombaBalance = withdrawalAvailability?.nomba_balance;
+  const nombaBalanceAvailable = withdrawalAvailability?.nomba_balance_available ?? nombaBalance != null;
+  const netPayoutTarget = campaign.net_payout_target ?? Math.max(0, Number(campaign.target_amount) - feeReserve);
+  const estimatedNetAvailable = campaign.estimated_net_available ?? Math.max(0, Math.min(Number(campaign.current_amount), Number(campaign.target_amount)) - feeReserve);
   const defaultPayout = payoutAccounts?.find((account) => Boolean(account.is_default)) ?? payoutAccounts?.[0];
   const payoutId = selectedPayoutId || defaultPayout?.id || '';
 
@@ -169,9 +177,22 @@ export default function CampaignDetailClient() {
         </div>
       )}
 
-      <div className="mb-8 grid gap-4 sm:grid-cols-4">
+      <div className="mb-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
         <Card><CardContent className="p-5"><p className="text-sm text-muted-foreground">Collected</p><p className="text-2xl font-bold">{formatNaira(Number(campaign.current_amount))}</p></CardContent></Card>
-        <Card><CardContent className="p-5"><p className="text-sm text-muted-foreground">Target</p><p className="text-2xl font-bold">{formatNaira(Number(campaign.target_amount))}</p></CardContent></Card>
+        <Card>
+          <CardContent className="p-5">
+            <p className="text-sm text-muted-foreground">Collection target</p>
+            <p className="text-2xl font-bold">{formatNaira(Number(campaign.target_amount))}</p>
+            <p className="mt-1 text-xs text-muted-foreground">You receive {formatNaira(netPayoutTarget)} after fees</p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="p-5">
+            <p className="text-sm text-muted-foreground">Est. net available</p>
+            <p className="text-2xl font-bold">{formatNaira(estimatedNetAvailable)}</p>
+            <p className="mt-1 text-xs text-muted-foreground">After {formatNaira(feeReserve)} transfer fee</p>
+          </CardContent>
+        </Card>
         <Card><CardContent className="p-5"><p className="text-sm text-muted-foreground">Contributors</p><p className="text-2xl font-bold">{campaign.contributors_count ?? 0}</p></CardContent></Card>
         <Card><CardContent className="p-5"><p className="text-sm text-muted-foreground">Progress</p><p className="text-2xl font-bold text-primary">{progress}%</p></CardContent></Card>
       </div>
@@ -240,10 +261,21 @@ export default function CampaignDetailClient() {
                 <p className="text-xl font-bold">{formatNaira(reservedWithdrawals)}</p>
               </div>
               <div>
-                <p className="text-sm text-muted-foreground">Available</p>
+                <p className="text-sm text-muted-foreground">Available to withdraw</p>
                 <p className="text-xl font-bold text-primary">{formatNaira(availableForWithdrawal)}</p>
               </div>
             </div>
+            {nombaBalanceAvailable && nombaBalance != null && availableForWithdrawal < campaignAvailable - feeReserve && (
+              <div className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">
+                Your campaign ledger shows {formatNaira(campaignAvailable)}, but Nomba settlement balance is {formatNaira(nombaBalance)}.
+                Payouts are capped at {formatNaira(availableForWithdrawal)} after reserving {formatNaira(feeReserve)} for transfer fees.
+              </div>
+            )}
+            {!nombaBalanceAvailable && campaignAvailable > feeReserve && (
+              <div className="rounded-lg border border-blue-200 bg-blue-50 p-3 text-sm text-blue-900">
+                Withdrawals reserve {formatNaira(feeReserve)} for Nomba transfer fees. You can withdraw up to {formatNaira(availableForWithdrawal)} from this campaign without needing Nomba dashboard access.
+              </div>
+            )}
             {!payoutAccounts?.length ? (
               <div className="rounded-lg border bg-muted/40 p-4 text-sm text-muted-foreground">
                 Add a verified payout account in Settings before withdrawing.

@@ -1,4 +1,5 @@
 import { v4 as uuid } from 'uuid';
+import { maxWithdrawableNgn, getPayoutTransferFeeNgn } from '../../lib/payout-fees';
 import { Errors } from '../../lib/errors';
 import { logAudit } from '../../lib/audit';
 import { sendEmail, withdrawalEmail } from '../../lib/email';
@@ -11,6 +12,36 @@ import { withdrawalsRepository } from './withdrawals.repository';
 import type { CreateWithdrawalInput } from './withdrawals.schema';
 
 export const withdrawalsService = {
+  async getAvailability(userId: string, goalId: string) {
+    const goal = await goalsRepository.findByIdRaw(goalId, userId);
+    if (!goal) throw Errors.notFound('Goal');
+
+    const collected = Number(goal.current_amount);
+    const reserved = await withdrawalsRepository.sumReservedByGoal(goalId);
+    const campaignAvailable = Math.max(0, collected - reserved);
+
+    const feeReserve = getPayoutTransferFeeNgn();
+    let nombaBalance: number | null = null;
+
+    try {
+      nombaBalance = await getPaymentProvider().getAccountBalance();
+    } catch {
+      nombaBalance = null;
+    }
+
+    const settlementAvailable = maxWithdrawableNgn(campaignAvailable, nombaBalance);
+
+    return {
+      campaign_collected: collected,
+      campaign_reserved: reserved,
+      campaign_available: campaignAvailable,
+      nomba_balance: nombaBalance,
+      transfer_fee_reserve: feeReserve,
+      max_withdrawable: settlementAvailable,
+      nomba_balance_available: nombaBalance != null,
+    };
+  },
+
   async list(userId: string, query: { goal_id?: string; status?: string; page?: number; per_page?: number }) {
     const page = query.page ?? 1;
     const perPage = Math.min(query.per_page ?? 20, 100);
@@ -44,11 +75,37 @@ export const withdrawalsService = {
 
     const collected = Number(goal.current_amount);
     const reserved = await withdrawalsRepository.sumReservedByGoal(goalId);
-    const available = Math.max(0, collected - reserved);
-    const amount = body.amount ?? available;
-    if (amount <= 0) throw Errors.conflict('No campaign balance is available for withdrawal');
-    if (amount > available) {
-      throw Errors.validation('Withdrawal amount exceeds available campaign balance', { available });
+    const campaignAvailable = Math.max(0, collected - reserved);
+    const feeReserve = getPayoutTransferFeeNgn();
+    let nombaBalance: number | null = null;
+
+    try {
+      nombaBalance = await provider.getAccountBalance();
+    } catch {
+      nombaBalance = null;
+    }
+
+    const maxWithdrawable = maxWithdrawableNgn(campaignAvailable, nombaBalance);
+
+    const amount = body.amount ?? maxWithdrawable;
+    if (amount <= 0) {
+      throw Errors.conflict(
+        nombaBalance != null && nombaBalance <= feeReserve
+          ? 'Nomba settlement wallet has insufficient balance for a payout (including transfer fee)'
+          : 'No campaign balance is available for withdrawal',
+      );
+    }
+    if (amount > campaignAvailable) {
+      throw Errors.validation('Withdrawal amount exceeds available campaign balance', { available: campaignAvailable });
+    }
+    if (amount > maxWithdrawable) {
+      const nombaNote = nombaBalance != null
+        ? `Nomba settlement balance is ₦${nombaBalance.toLocaleString()}. `
+        : 'We could not verify your Nomba settlement balance. ';
+      throw Errors.validation(
+        `${nombaNote}After reserving ₦${feeReserve} for the payout transfer fee, the maximum you can withdraw now is ₦${maxWithdrawable.toLocaleString()}.`,
+        { max_withdrawable: maxWithdrawable, nomba_balance: nombaBalance, transfer_fee_reserve: feeReserve },
+      );
     }
 
     const activeVa = await virtualAccountsRepository.findByGoalAndUser(goalId, userId);
@@ -109,7 +166,7 @@ export const withdrawalsService = {
       });
 
       const { raw: _raw, ...transferResponse } = transfer;
-      return { withdrawal: updated ?? withdrawal, transfer: transferResponse, available_before_withdrawal: available };
+      return { withdrawal: updated ?? withdrawal, transfer: transferResponse, available_before_withdrawal: maxWithdrawable };
     } catch (err) {
       const details = (err as { details?: Record<string, unknown> }).details;
       const providerReference = extractProviderReference(details);
@@ -124,11 +181,11 @@ export const withdrawalsService = {
         return {
           withdrawal: processingWithdrawal ?? withdrawal,
           transfer: null,
-          available_before_withdrawal: available,
+          available_before_withdrawal: maxWithdrawable,
         };
       }
 
-      const reason = err instanceof Error ? err.message : 'Withdrawal failed';
+      const reason = humanizeTransferError(err);
       const failed = await withdrawalsRepository.markFailed(withdrawalId, reason, providerReference);
       await this.emailOwner(owner?.email, 'failed', goal.title as string, amount, account, reason);
       await logAudit({
@@ -139,7 +196,7 @@ export const withdrawalsService = {
         resource_id: withdrawalId,
         metadata: { reason, provider_reference: providerReference ?? null },
       });
-      return { withdrawal: failed ?? withdrawal, transfer: null, available_before_withdrawal: available };
+      return { withdrawal: failed ?? withdrawal, transfer: null, available_before_withdrawal: maxWithdrawable };
     }
   },
 
@@ -310,6 +367,14 @@ export const withdrawalsService = {
     await sendEmail({ to: { email }, subject, html }).catch(() => undefined);
   },
 };
+
+function humanizeTransferError(err: unknown): string {
+  const msg = err instanceof Error ? err.message : 'Withdrawal failed';
+  if (/INSUFFICIENT_BALANCE/i.test(msg)) {
+    return 'Nomba settlement wallet does not have enough balance for this payout (amount + transfer fee). Try a smaller amount or check your Nomba dashboard.';
+  }
+  return msg;
+}
 
 function merchantTxRefFromWithdrawalId(withdrawalId: string): string {
   return `TF-WD-${withdrawalId.replace(/[^a-zA-Z0-9]/g, '').slice(0, 48)}`.slice(0, 64);

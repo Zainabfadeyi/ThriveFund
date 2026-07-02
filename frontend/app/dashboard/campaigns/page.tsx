@@ -57,7 +57,12 @@ export default function CampaignsPage() {
                     <p className="text-sm text-muted-foreground">{c.contributors_count ?? 0} contributors · {c.days_left ?? 0} days left</p>
                     <div className="mt-3 max-w-md">
                       <Progress value={progress} />
-                      <p className="mt-1 text-sm text-muted-foreground">{formatNaira(Number(c.current_amount))} of {formatNaira(Number(c.target_amount))} ({progress}%)</p>
+                      <p className="mt-1 text-sm text-muted-foreground">
+                        {formatNaira(Number(c.current_amount))} of {formatNaira(Number(c.target_amount))} ({progress}%)
+                        {c.net_payout_target != null && (
+                          <> · receive {formatNaira(Number(c.net_payout_target))}</>
+                        )}
+                      </p>
                     </div>
                   </div>
                   <div className="flex gap-2">

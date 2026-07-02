@@ -22,6 +22,12 @@ export const withdrawalsController = {
     } catch (err) { next(err); }
   },
 
+  async availability(req: Request, res: Response, next: NextFunction) {
+    try {
+      ok(res, await withdrawalsService.getAvailability(req.user!.sub, req.params.id));
+    } catch (err) { next(err); }
+  },
+
   async createForGoal(req: Request, res: Response, next: NextFunction) {
     try {
       const body = createWithdrawalSchema.parse(req.body);

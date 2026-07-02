@@ -10,3 +10,4 @@ contentRouter.get('/', contentController.categories);           // GET /categori
 contentRouter.get('/supported', contentController.banks);       // GET /banks/supported
 contentRouter.post('/lookup', requireAuth, contentController.lookupBank); // POST /banks/lookup
 contentRouter.get('/faqs', contentController.faqs);             // GET /content/faqs
+contentRouter.get('/payout-info', contentController.payoutInfo); // GET /content/payout-info

@@ -21,6 +21,7 @@ test('webhooksService rejects invalid Nomba signatures before persisting', async
     lookupBankAccount: async () => { throw new Error('unused'); },
     healthCheck: async () => ({ status: 'ok' }),
     listBankTransactions: async () => ({ rows: [] }),
+    getAccountBalance: async () => 0,
   });
   webhooksRepository.insertEvent = async () => {
     throw new Error('webhook should not be persisted');
@@ -56,6 +57,7 @@ test('webhooksService stores, verifies, and reconciles payment_success events', 
     lookupBankAccount: async () => { throw new Error('unused'); },
     healthCheck: async () => ({ status: 'ok' }),
     listBankTransactions: async () => ({ rows: [] }),
+    getAccountBalance: async () => 0,
   });
   webhooksRepository.insertEvent = async (data: Record<string, unknown>) => ({ id: 'wh_123', ...data });
   webhooksRepository.findByRequestId = async () => null;
@@ -124,6 +126,7 @@ test('webhooksService normalizes live-shaped Nomba transfer payloads', async () 
     lookupBankAccount: async () => { throw new Error('unused'); },
     healthCheck: async () => ({ status: 'ok' }),
     listBankTransactions: async () => ({ rows: [] }),
+    getAccountBalance: async () => 0,
   });
   webhooksRepository.insertEvent = async (data: Record<string, unknown>) => ({ id: 'wh_123', ...data });
   webhooksRepository.findByRequestId = async () => null;

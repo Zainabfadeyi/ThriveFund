@@ -17,6 +17,7 @@ import type {
   Notification,
   Organization,
   PayoutAccount,
+  PayoutFeeInfo,
   PublicGoal,
   PublicPaymentActivity,
   ReconciliationOverview,
@@ -86,6 +87,16 @@ export const goalsApi = {
   withdraw: (id: string, body: { payout_account_id?: string; amount?: number; narration?: string }) =>
     apiRequest<{ withdrawal: Withdrawal; transfer: unknown; available_before_withdrawal: number }>(`/goals/${id}/withdraw`, { method: 'POST', body: JSON.stringify(body) }),
   withdrawals: (id: string) => apiRequest<Withdrawal[]>(`/goals/${id}/withdrawals`),
+  withdrawalAvailability: (id: string) =>
+    apiRequest<{
+      campaign_collected: number;
+      campaign_reserved: number;
+      campaign_available: number;
+      nomba_balance: number | null;
+      transfer_fee_reserve: number;
+      max_withdrawable: number;
+      nomba_balance_available?: boolean;
+    }>(`/goals/${id}/withdrawal-availability`),
   share: (id: string) => apiRequest<ShareLink>(`/goals/${id}/share`),
   exportReport: (id: string, format: 'csv' | 'pdf' = 'csv') =>
     apiRequest<string | Blob>(`/goals/${id}/export`, { params: { format } }),
@@ -138,6 +149,10 @@ export const contributorsApi = {
 
 export const banksApi = {
   supported: () => apiRequest<Bank[]>('/banks/supported'),
+};
+
+export const contentApi = {
+  payoutInfo: () => apiRequest<PayoutFeeInfo>('/content/payout-info', { skipAuth: true }),
 };
 
 export const reconciliationApi = {

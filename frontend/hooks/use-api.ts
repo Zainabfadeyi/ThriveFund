@@ -7,6 +7,7 @@ import {
   adminApi,
   analyticsApi,
   banksApi,
+  contentApi,
   contributorsApi,
   dashboardApi,
   goalsApi,
@@ -62,6 +63,7 @@ export const queryKeys = {
   publicGoal: (slug: string) => ['public-goal', slug] as const,
   publicVa: (slug: string) => ['public-va', slug] as const,
   banks: ['banks'] as const,
+  payoutInfo: ['payout-info'] as const,
 };
 
 export function useDashboard() {
@@ -211,6 +213,14 @@ export function useBanks() {
   });
 }
 
+export function usePayoutFeeInfo() {
+  return useQuery({
+    queryKey: queryKeys.payoutInfo,
+    queryFn: async () => (await contentApi.payoutInfo()).data,
+    staleTime: 60 * 60 * 1000,
+  });
+}
+
 export function useVerifyPayoutAccount() {
   return useMutation({
     mutationFn: payoutAccountsApi.verify,
@@ -259,6 +269,15 @@ export function useGoalWithdrawals(id: string) {
   });
 }
 
+export function useGoalWithdrawalAvailability(id: string) {
+  return useQuery({
+    queryKey: ['goal-withdrawal-availability', id],
+    queryFn: async () => (await goalsApi.withdrawalAvailability(id)).data,
+    enabled: !!id,
+    refetchInterval: 20_000,
+  });
+}
+
 export function useCreateWithdrawal(goalId: string) {
   const qc = useQueryClient();
   return useMutation({
@@ -266,6 +285,7 @@ export function useCreateWithdrawal(goalId: string) {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: queryKeys.goal(goalId) });
       qc.invalidateQueries({ queryKey: queryKeys.goalWithdrawals(goalId) });
+      qc.invalidateQueries({ queryKey: ['goal-withdrawal-availability', goalId] });
       qc.invalidateQueries({ queryKey: ['withdrawals'] });
     },
   });

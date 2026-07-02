@@ -2,6 +2,7 @@ import type { Request, Response, NextFunction } from 'express';
 import { ok } from '../../lib/response';
 import { getPaymentProvider } from '../../providers/payment';
 import { Errors } from '../../lib/errors';
+import { getPayoutFeeInfo } from '../../lib/payout-fees';
 
 const CATEGORIES = [
   { slug: 'community_project', label: 'Community Project' },
@@ -47,5 +48,9 @@ export const contentController = {
 
   faqs(_req: Request, res: Response, next: NextFunction) {
     try { ok(res, FAQS); } catch (err) { next(err); }
+  },
+
+  payoutInfo(_req: Request, res: Response, next: NextFunction) {
+    try { ok(res, getPayoutFeeInfo()); } catch (err) { next(err); }
   },
 };
