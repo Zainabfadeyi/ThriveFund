@@ -7,6 +7,7 @@ import { Logo } from '@/components/shared/logo';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useAuth, getAuthErrorMessage } from '@/contexts/auth-context';
 import { toast } from 'sonner';
 
@@ -18,9 +19,23 @@ const PASSWORD_RULES = [
   { label: 'One special character (!@#$%^&*)', test: (p: string) => /[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]/.test(p) },
 ];
 
+const ORG_TYPES = ['school', 'mosque', 'church', 'cooperative', 'association', 'ngo', 'business', 'event', 'other'];
+
 export default function SignupPage() {
   const { register } = useAuth();
-  const [form, setForm] = useState({ full_name: '', email: '', password: '', confirm_password: '', phone_number: '' });
+  const [form, setForm] = useState({
+    full_name: '',
+    email: '',
+    password: '',
+    confirm_password: '',
+    phone_number: '',
+    organization_name: '',
+    organization_type: 'ngo',
+    organization_description: '',
+    organization_email: '',
+    organization_phone: '',
+    organization_address: '',
+  });
   const [submitting, setSubmitting] = useState(false);
   const [passwordFocused, setPasswordFocused] = useState(false);
 
@@ -44,6 +59,12 @@ export default function SignupPage() {
         email: form.email,
         password: form.password,
         phone_number: form.phone_number || undefined,
+        organization_name: form.organization_name,
+        organization_type: form.organization_type,
+        organization_description: form.organization_description || undefined,
+        organization_email: form.organization_email || undefined,
+        organization_phone: form.organization_phone || undefined,
+        organization_address: form.organization_address || undefined,
       });
       toast.success('Account created!');
     } catch (err) {
@@ -55,12 +76,12 @@ export default function SignupPage() {
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-[#F8FAFC] px-4">
-      <div className="w-full max-w-md space-y-8">
+      <div className="w-full max-w-2xl space-y-8 py-8">
         <div className="flex justify-center"><Logo /></div>
         <Card>
           <CardHeader>
             <CardTitle>Create account</CardTitle>
-            <CardDescription>Start collecting and reconciling payments</CardDescription>
+            <CardDescription>Create your organization portal and start collecting campaign payments</CardDescription>
           </CardHeader>
           <CardContent>
             <form onSubmit={handleSubmit} className="space-y-4">
@@ -117,7 +138,36 @@ export default function SignupPage() {
                   </p>
                 )}
               </div>
-              <Button className="w-full" type="submit" disabled={submitting || !passwordValid || !passwordsMatch}>
+              <div className="grid gap-4 rounded-lg border bg-muted/30 p-4 sm:grid-cols-2">
+                <div className="space-y-2 sm:col-span-2">
+                  <label className="text-sm font-medium">Organization Name</label>
+                  <Input value={form.organization_name} onChange={(e) => setForm({ ...form, organization_name: e.target.value })} required />
+                </div>
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">Organization Type</label>
+                  <Select value={form.organization_type} onValueChange={(v) => setForm({ ...form, organization_type: v })}>
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent>{ORG_TYPES.map((t) => <SelectItem key={t} value={t}>{t}</SelectItem>)}</SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">Organization Email</label>
+                  <Input type="email" value={form.organization_email} onChange={(e) => setForm({ ...form, organization_email: e.target.value })} placeholder={form.email || undefined} />
+                </div>
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">Organization Phone</label>
+                  <Input value={form.organization_phone} onChange={(e) => setForm({ ...form, organization_phone: e.target.value })} />
+                </div>
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">Address</label>
+                  <Input value={form.organization_address} onChange={(e) => setForm({ ...form, organization_address: e.target.value })} />
+                </div>
+                <div className="space-y-2 sm:col-span-2">
+                  <label className="text-sm font-medium">Description</label>
+                  <Input value={form.organization_description} onChange={(e) => setForm({ ...form, organization_description: e.target.value })} />
+                </div>
+              </div>
+              <Button className="w-full" type="submit" disabled={submitting || !passwordValid || !passwordsMatch || !form.organization_name}>
                 {submitting ? 'Creating...' : 'Create Account'}
               </Button>
               <p className="text-center text-sm text-muted-foreground">

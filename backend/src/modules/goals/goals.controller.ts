@@ -68,4 +68,13 @@ export const goalsController = {
       ok(res, data);
     } catch (err) { next(err); }
   },
+
+  async exportCampaign(req: Request, res: Response, next: NextFunction) {
+    try {
+      const csv = await goalsService.exportCampaign(req.user!.sub, req.params.id);
+      res.setHeader('Content-Type', 'text/csv');
+      res.setHeader('Content-Disposition', `attachment; filename="campaign-${req.params.id}.csv"`);
+      res.send(csv);
+    } catch (err) { next(err); }
+  },
 };

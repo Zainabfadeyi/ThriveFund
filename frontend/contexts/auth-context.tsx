@@ -11,7 +11,18 @@ interface AuthContextValue {
   user: User | null;
   loading: boolean;
   login: (email: string, password: string) => Promise<void>;
-  register: (data: { full_name: string; email: string; password: string; phone_number?: string }) => Promise<void>;
+  register: (data: {
+    full_name: string;
+    email: string;
+    password: string;
+    phone_number?: string;
+    organization_name: string;
+    organization_type: string;
+    organization_description?: string;
+    organization_email?: string;
+    organization_phone?: string;
+    organization_address?: string;
+  }) => Promise<void>;
   logout: () => Promise<void>;
   refreshUser: () => Promise<void>;
 }
@@ -49,7 +60,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     router.push('/dashboard');
   }, [router]);
 
-  const register = useCallback(async (data: { full_name: string; email: string; password: string; phone_number?: string }) => {
+  const register = useCallback(async (data: {
+    full_name: string;
+    email: string;
+    password: string;
+    phone_number?: string;
+    organization_name: string;
+    organization_type: string;
+    organization_description?: string;
+    organization_email?: string;
+    organization_phone?: string;
+    organization_address?: string;
+  }) => {
     const res = await authApi.register(data);
     setTokens(res.data.tokens);
     setUser(res.data.user);

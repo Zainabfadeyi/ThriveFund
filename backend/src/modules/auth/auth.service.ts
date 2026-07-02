@@ -5,6 +5,7 @@ import { env } from '../../config/env';
 import { Errors } from '../../lib/errors';
 import { sendEmail, passwordResetEmail } from '../../lib/email';
 import { authRepository } from './auth.repository';
+import { organizationsRepository } from '../organizations/organizations.repository';
 import type { RegisterInput, LoginInput, RefreshInput, ForgotPasswordInput, ResetPasswordInput } from './auth.schema';
 
 function signTokens(userId: string, role: string, email: string) {
@@ -17,6 +18,21 @@ function signTokens(userId: string, role: string, email: string) {
   return { access_token, refresh_token, expires_in: 3600 };
 }
 
+function slugify(name: string) {
+  return name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '').slice(0, 80);
+}
+
+async function uniqueOrganizationSlug(name: string) {
+  const baseSlug = slugify(name) || `org-${Date.now()}`;
+  let slug = baseSlug;
+  let attempt = 0;
+  while (await organizationsRepository.findBySlug(slug)) {
+    attempt++;
+    slug = `${baseSlug}-${attempt}`;
+  }
+  return slug;
+}
+
 export const authService = {
   async register(body: RegisterInput) {
     const existing = await authRepository.findUserByEmail(body.email);
@@ -25,18 +41,32 @@ export const authService = {
     const password_hash = await bcrypt.hash(body.password, 12);
     const id = `usr_${uuid().replace(/-/g, '').slice(0, 12)}`;
 
-    const user = await authRepository.insertUser({
-      id,
-      full_name: body.full_name,
-      email: body.email,
-      password_hash,
-      phone_number: body.phone_number,
+    const organizationId = `org_${uuid().replace(/-/g, '').slice(0, 12)}`;
+    const { user, organization } = await authRepository.insertUserWithOrganization({
+      user: {
+        id,
+        full_name: body.full_name,
+        email: body.email,
+        password_hash,
+        phone_number: body.phone_number,
+      },
+      organization: {
+        id: organizationId,
+        name: body.organization_name,
+        slug: await uniqueOrganizationSlug(body.organization_name),
+        type: body.organization_type,
+        description: body.organization_description,
+        email: body.organization_email,
+        phone: body.organization_phone,
+        address: body.organization_address,
+      },
+      membership: { id: `om_${uuid().replace(/-/g, '').slice(0, 12)}` },
     });
 
     const tokens = signTokens(user.id, user.role, user.email);
     await authRepository.insertRefreshToken(tokens.refresh_token, user.id);
 
-    return { user, tokens };
+    return { user, organization, tokens };
   },
 
   async login(body: LoginInput) {

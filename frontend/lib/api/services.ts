@@ -1,6 +1,7 @@
 import { apiRequest } from './client';
 import type {
   AdminOverview,
+  AuthPayload,
   AuthTokens,
   CategoryBreakdown,
   Contributor,
@@ -24,8 +25,19 @@ import type {
 } from './types';
 
 export const authApi = {
-  register: (body: { full_name: string; email: string; password: string; phone_number?: string }) =>
-    apiRequest<{ user: User; tokens: AuthTokens }>('/auth/register', { method: 'POST', body: JSON.stringify(body), skipAuth: true }),
+  register: (body: {
+    full_name: string;
+    email: string;
+    password: string;
+    phone_number?: string;
+    organization_name: string;
+    organization_type: string;
+    organization_description?: string;
+    organization_email?: string;
+    organization_phone?: string;
+    organization_address?: string;
+  }) =>
+    apiRequest<AuthPayload>('/auth/register', { method: 'POST', body: JSON.stringify(body), skipAuth: true }),
   login: (body: { email: string; password: string }) =>
     apiRequest<{ user: User; tokens: AuthTokens }>('/auth/login', { method: 'POST', body: JSON.stringify(body), skipAuth: true }),
   logout: (refresh_token: string) =>
@@ -62,6 +74,7 @@ export const goalsApi = {
   delete: (id: string) => apiRequest<void>(`/goals/${id}`, { method: 'DELETE' }),
   close: (id: string) => apiRequest<Goal>(`/goals/${id}/close`, { method: 'POST' }),
   share: (id: string) => apiRequest<ShareLink>(`/goals/${id}/share`),
+  exportCsv: (id: string) => apiRequest<string>(`/goals/${id}/export`),
   createVirtualAccount: (id: string, body?: { account_name_suffix?: string; preferred_bank?: string }) =>
     apiRequest<VirtualAccount>(`/goals/${id}/virtual-account`, { method: 'POST', body: JSON.stringify(body ?? {}) }),
   getVirtualAccount: (id: string) => apiRequest<VirtualAccount>(`/goals/${id}/virtual-account`),
@@ -137,4 +150,20 @@ export const publicApi = {
 
 export const adminApi = {
   overview: () => apiRequest<AdminOverview>('/admin/overview'),
+  organizations: (params?: { q?: string; type?: string; page?: number; per_page?: number }) =>
+    apiRequest<Organization[]>('/admin/organizations', { params }),
+  organization: (id: string) => apiRequest<Organization>(`/admin/organizations/${id}`),
+  updateOrganization: (id: string, body: Partial<Organization>) =>
+    apiRequest<Organization>(`/admin/organizations/${id}`, { method: 'PATCH', body: JSON.stringify(body) }),
+  goals: (params?: { page?: number; per_page?: number; organization_id?: string; status?: string; q?: string }) =>
+    apiRequest<Goal[]>('/admin/goals', { params }),
+  updateGoalStatus: (id: string, status: string) =>
+    apiRequest<Goal>(`/admin/goals/${id}/status`, { method: 'PATCH', body: JSON.stringify({ status }) }),
+  exportGoalCsv: (id: string) => apiRequest<string>(`/admin/goals/${id}/export`),
+  transactions: (params?: { page?: number; per_page?: number }) => apiRequest<Transaction[]>('/admin/transactions', { params }),
+  webhookEvents: (params?: { processed?: boolean; event_type?: string; page?: number; per_page?: number }) =>
+    apiRequest<unknown[]>('/admin/webhook-events', { params }),
+  reconciliation: (params?: { status?: string; page?: number; per_page?: number }) =>
+    apiRequest<ReconciliationRecord[]>('/admin/reconciliation', { params }),
+  users: (params?: { page?: number; per_page?: number }) => apiRequest<User[]>('/admin/users', { params }),
 };

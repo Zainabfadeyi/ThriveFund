@@ -7,6 +7,7 @@ import { AuditAction } from '../../shared/types/enums';
 import { webhooksRepository } from './webhooks.repository';
 import { paymentsService } from '../payments/payments.service';
 import { reconciliationService } from '../reconciliation/reconciliation.service';
+import { broadcastRealtime } from '../../lib/realtime';
 
 interface NombaPayload {
   event?: string;
@@ -96,10 +97,16 @@ export const webhooksService = {
    * 2. Store raw webhook_events
    * 3. Delegate to payments → reconciliation
    */
-  async processNomba(rawBody: string, signature: string, payload: NombaPayload, timestamp?: string) {
+  async processNomba(
+    rawBody: string,
+    signature: string,
+    payload: NombaPayload,
+    timestamp?: string,
+    options: { skipSignature?: boolean } = {},
+  ) {
     const provider = getPaymentProvider();
 
-    if (!provider.validateWebhookSignature(rawBody, signature, timestamp)) {
+    if (!options.skipSignature && !provider.validateWebhookSignature(rawBody, signature, timestamp)) {
       throw Errors.unauthorized('Invalid webhook signature');
     }
 
@@ -167,6 +174,15 @@ export const webhooksService = {
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Processing failed';
       await webhooksRepository.markFailed(providerPayload.providerReference, message);
+      broadcastRealtime({
+        type: 'webhook.failed',
+        goal_id: undefined,
+        data: {
+          provider_reference: providerPayload.providerReference,
+          event: providerPayload.event,
+          message,
+        },
+      });
       throw err;
     }
   },

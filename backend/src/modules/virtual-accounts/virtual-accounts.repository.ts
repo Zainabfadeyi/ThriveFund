@@ -79,7 +79,7 @@ export const virtualAccountsRepository = {
 
   async markInactive(id: string) {
     await execute(
-      `UPDATE virtual_accounts SET status = 'inactive' WHERE id = ?`,
+      `UPDATE virtual_accounts SET status = 'inactive', expired_at = COALESCE(expired_at, NOW()) WHERE id = ?`,
       [id],
     );
     const rows = await query('SELECT * FROM virtual_accounts WHERE id = ?', [id]);
@@ -88,7 +88,7 @@ export const virtualAccountsRepository = {
 
   async findByAccountNumber(accountNumber: string) {
     const rows = await query(
-      `SELECT id, goal_id FROM virtual_accounts WHERE account_number = ? AND status = 'active'`,
+      `SELECT * FROM virtual_accounts WHERE account_number = ? AND status = 'active'`,
       [accountNumber],
     );
     return rows[0] ?? null;

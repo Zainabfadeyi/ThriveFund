@@ -27,6 +27,12 @@ export interface AuthTokens {
   expires_in: number;
 }
 
+export interface AuthPayload {
+  user: User;
+  organization?: Organization;
+  tokens: AuthTokens;
+}
+
 export interface User {
   id: string;
   full_name: string;
@@ -48,6 +54,15 @@ export interface Organization {
   owner_id: string;
   created_at?: string;
   updated_at?: string;
+  owner_email?: string;
+  owner_name?: string;
+  campaigns_count?: number;
+  total_collected?: number;
+  total_target?: number;
+  active_campaigns?: number;
+  completed_campaigns?: number;
+  campaigns?: Goal[];
+  recent_transactions?: Transaction[];
 }
 
 export interface Goal {
@@ -68,6 +83,8 @@ export interface Goal {
   progress_percent?: number;
   contributors_count?: number;
   remaining_amount?: number;
+  completed_at?: string | null;
+  closed_at?: string | null;
   created_at?: string;
   virtual_account?: VirtualAccount | null;
 }
@@ -83,6 +100,7 @@ export interface VirtualAccount {
   provider_reference?: string;
   status?: string;
   goal_title?: string;
+  expired_at?: string | null;
   created_at?: string;
 }
 
@@ -199,6 +217,14 @@ export interface AdminOverview {
   total_volume_ngn?: number;
   pending_reconciliation?: number;
   reconciliation: ReconciliationOverview;
+}
+
+export interface RealtimeEvent {
+  type: 'campaign.balance_updated' | 'campaign.completed' | 'transaction.created' | 'webhook.failed' | 'connected';
+  user_id?: string;
+  organization_id?: string | null;
+  goal_id?: string;
+  data: Record<string, unknown>;
 }
 
 export interface MonthlyContribution {

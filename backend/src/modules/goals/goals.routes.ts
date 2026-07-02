@@ -20,6 +20,7 @@ goalsRouter.delete('/:id', goalsController.delete);
 goalsRouter.post('/:id/close', goalsController.close);
 goalsRouter.post('/:id/close-out', goalsController.closeOut);
 goalsRouter.get('/:id/share', goalsController.getShareLink);
+goalsRouter.get('/:id/export', goalsController.exportCampaign);
 
 // Virtual account (nested)
 goalsRouter.post('/:id/virtual-account', virtualAccountsController.createForGoal);

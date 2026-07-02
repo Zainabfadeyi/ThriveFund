@@ -1,7 +1,8 @@
 'use client';
 
+import Link from 'next/link';
 import { useState } from 'react';
-import { Plus, Building2 } from 'lucide-react';
+import { Plus, Building2, ArrowRight } from 'lucide-react';
 import { toast } from 'sonner';
 import { PageHeader } from '@/components/shared/page-header';
 import { LoadingState, ErrorState, EmptyState } from '@/components/shared/query-states';
@@ -12,6 +13,7 @@ import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useOrganizations, useCreateOrganization } from '@/hooks/use-api';
 import { getAuthErrorMessage } from '@/contexts/auth-context';
+import { formatNaira } from '@/lib/utils';
 
 const ORG_TYPES = ['school', 'mosque', 'church', 'cooperative', 'association', 'ngo', 'business', 'event', 'other'];
 
@@ -72,6 +74,23 @@ export default function OrganizationsPage() {
                 </div>
                 <h3 className="mb-1 text-lg font-semibold">{org.name}</h3>
                 <p className="line-clamp-2 text-sm text-muted-foreground">{org.description ?? 'No description'}</p>
+                <div className="mt-5 grid grid-cols-3 gap-3 text-sm">
+                  <div>
+                    <p className="text-muted-foreground">Campaigns</p>
+                    <p className="font-semibold">{org.campaigns_count ?? 0}</p>
+                  </div>
+                  <div>
+                    <p className="text-muted-foreground">Active</p>
+                    <p className="font-semibold">{org.active_campaigns ?? '-'}</p>
+                  </div>
+                  <div>
+                    <p className="text-muted-foreground">Raised</p>
+                    <p className="font-semibold">{formatNaira(Number(org.total_collected ?? 0))}</p>
+                  </div>
+                </div>
+                <Button className="mt-5 w-full" variant="outline" asChild>
+                  <Link href={`/dashboard/organizations/${org.id}`}>Open Portal <ArrowRight className="h-4 w-4" /></Link>
+                </Button>
               </CardContent>
             </Card>
           ))}

@@ -37,7 +37,13 @@ after(async () => {
 });
 
 const endpoints: EndpointCase[] = [
-  { method: 'POST', path: '/api/v1/auth/register', body: { email: 'user@example.com', password: 'Password1234567890', name: 'Test User' } },
+  { method: 'POST', path: '/api/v1/auth/register', body: {
+    full_name: 'Test User',
+    email: 'user@example.com',
+    password: 'Password1234567890',
+    organization_name: 'Acme School',
+    organization_type: 'school',
+  } },
   { method: 'POST', path: '/api/v1/auth/login', body: { email: 'user@example.com', password: 'Password1234567890' } },
   { method: 'POST', path: '/api/v1/auth/refresh', body: { refresh_token: 'refresh_123' } },
   { method: 'POST', path: '/api/v1/auth/logout', auth: 'user', body: { refresh_token: 'refresh_123' } },
@@ -69,6 +75,7 @@ const endpoints: EndpointCase[] = [
   { method: 'POST', path: '/api/v1/goals/goal_123/close', auth: 'user' },
   { method: 'POST', path: '/api/v1/goals/goal_123/close-out', auth: 'user', body: { account_number: '0123456789', account_name: 'Test User', bank_code: '058' } },
   { method: 'GET', path: '/api/v1/goals/goal_123/share', auth: 'user' },
+  { method: 'GET', path: '/api/v1/goals/goal_123/export', auth: 'user', accept: 'text/csv' },
   { method: 'POST', path: '/api/v1/goals/goal_123/virtual-account', auth: 'user', body: {} },
   { method: 'GET', path: '/api/v1/goals/goal_123/virtual-account', auth: 'user' },
   { method: 'GET', path: '/api/v1/goals/goal_123/transactions', auth: 'user' },
@@ -128,8 +135,13 @@ const endpoints: EndpointCase[] = [
   { method: 'POST', path: '/api/v1/admin/reconciliation/rec_123/resolve', auth: 'admin', body: { goal_id: 'goal_123' } },
   { method: 'GET', path: '/api/v1/admin/webhook-events', auth: 'admin' },
   { method: 'POST', path: '/api/v1/admin/webhook-events/wh_123/retry', auth: 'admin' },
+  { method: 'GET', path: '/api/v1/admin/organizations', auth: 'admin' },
+  { method: 'GET', path: '/api/v1/admin/organizations/org_123', auth: 'admin' },
+  { method: 'PATCH', path: '/api/v1/admin/organizations/org_123', auth: 'admin', body: { description: 'Updated by admin' } },
   { method: 'GET', path: '/api/v1/admin/users', auth: 'admin' },
   { method: 'GET', path: '/api/v1/admin/goals', auth: 'admin' },
+  { method: 'PATCH', path: '/api/v1/admin/goals/goal_123/status', auth: 'admin', body: { status: 'paused' } },
+  { method: 'GET', path: '/api/v1/admin/goals/goal_123/export', auth: 'admin', accept: 'text/csv' },
   { method: 'GET', path: '/api/v1/admin/transactions', auth: 'admin' },
   { method: 'GET', path: '/api/v1/admin/audit-logs', auth: 'admin' },
   { method: 'GET', path: '/api/v1/health' },
@@ -317,6 +329,7 @@ async function stubControllers() {
   patchAll(organizations.organizationsController, jsonHandler);
   patchAll(organizationMembers.organizationMembersController, jsonHandler);
   patchAll(goals.goalsController, jsonHandler);
+  goals.goalsController.exportCampaign = csvHandler;
   patchAll(virtualAccounts.virtualAccountsController, jsonHandler);
   patchAll(payments.paymentsController, jsonHandler);
   patchAll(contributors.contributorsController, jsonHandler);
@@ -329,6 +342,7 @@ async function stubControllers() {
   patchAll(content.contentController, jsonHandler);
   patchAll(webhooks.webhooksController, jsonHandler);
   patchAll(admin.adminController, jsonHandler);
+  admin.adminController.exportGoal = csvHandler;
   patchAll(auditLogs.auditLogsController, jsonHandler);
 
   patchAll(transactions.transactionsController, jsonHandler);

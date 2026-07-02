@@ -44,6 +44,13 @@ export const queryKeys = {
   notifications: (params?: object) => ['notifications', params] as const,
   notificationsUnread: ['notifications-unread'] as const,
   adminOverview: ['admin-overview'] as const,
+  adminOrganizations: (params?: object) => ['admin-organizations', params] as const,
+  adminOrganization: (id: string) => ['admin-organization', id] as const,
+  adminGoals: (params?: object) => ['admin-goals', params] as const,
+  adminTransactions: (params?: object) => ['admin-transactions', params] as const,
+  adminWebhooks: (params?: object) => ['admin-webhooks', params] as const,
+  adminReconciliation: (params?: object) => ['admin-reconciliation', params] as const,
+  adminUsers: (params?: object) => ['admin-users', params] as const,
   publicGoal: (slug: string) => ['public-goal', slug] as const,
   publicVa: (slug: string) => ['public-va', slug] as const,
 };
@@ -131,6 +138,12 @@ export function useGoalShare(id: string) {
   });
 }
 
+export function useExportCampaign() {
+  return useMutation({
+    mutationFn: goalsApi.exportCsv,
+  });
+}
+
 export function useCreateGoal() {
   const qc = useQueryClient();
   return useMutation({
@@ -143,6 +156,14 @@ export function useOrganizations() {
   return useQuery({
     queryKey: queryKeys.organizations,
     queryFn: async () => (await organizationsApi.list()).data,
+  });
+}
+
+export function useOrganization(id: string) {
+  return useQuery({
+    queryKey: ['organization', id],
+    queryFn: async () => (await organizationsApi.get(id)).data,
+    enabled: !!id,
   });
 }
 
@@ -267,6 +288,73 @@ export function useAdminOverview() {
     queryKey: queryKeys.adminOverview,
     queryFn: async () => (await adminApi.overview()).data,
     retry: false,
+  });
+}
+
+export function useAdminOrganizations(params?: { q?: string; type?: string; page?: number }) {
+  return useQuery({
+    queryKey: queryKeys.adminOrganizations(params),
+    queryFn: async () => (await adminApi.organizations(params)).data,
+  });
+}
+
+export function useAdminOrganization(id: string) {
+  return useQuery({
+    queryKey: queryKeys.adminOrganization(id),
+    queryFn: async () => (await adminApi.organization(id)).data,
+    enabled: !!id,
+  });
+}
+
+export function useAdminGoals(params?: { q?: string; status?: string; organization_id?: string; page?: number }) {
+  return useQuery({
+    queryKey: queryKeys.adminGoals(params),
+    queryFn: async () => (await adminApi.goals(params)).data,
+  });
+}
+
+export function useAdminTransactions(params?: { page?: number }) {
+  return useQuery({
+    queryKey: queryKeys.adminTransactions(params),
+    queryFn: async () => (await adminApi.transactions(params)).data,
+  });
+}
+
+export function useAdminWebhooks(params?: { processed?: boolean; event_type?: string; page?: number }) {
+  return useQuery({
+    queryKey: queryKeys.adminWebhooks(params),
+    queryFn: async () => (await adminApi.webhookEvents(params)).data,
+  });
+}
+
+export function useAdminReconciliation(params?: { status?: string; page?: number }) {
+  return useQuery({
+    queryKey: queryKeys.adminReconciliation(params),
+    queryFn: async () => (await adminApi.reconciliation(params)).data,
+  });
+}
+
+export function useAdminUsers(params?: { page?: number }) {
+  return useQuery({
+    queryKey: queryKeys.adminUsers(params),
+    queryFn: async () => (await adminApi.users(params)).data,
+  });
+}
+
+export function useUpdateAdminGoalStatus() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, status }: { id: string; status: string }) => adminApi.updateGoalStatus(id, status),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['admin-goals'] });
+      qc.invalidateQueries({ queryKey: ['goals'] });
+    },
+  });
+}
+
+export function useAdminExportGoal() {
+  return useMutation({
+    mutationFn: adminApi.exportGoalCsv,
   });
 }
 

@@ -5,6 +5,12 @@ export const registerSchema = z.object({
   email: z.string().email(),
   password: z.string().min(8).regex(/[A-Z]/, 'Must contain uppercase').regex(/[0-9]/, 'Must contain number'),
   phone_number: z.string().optional(),
+  organization_name: z.string().min(2).max(255),
+  organization_type: z.enum(['school','mosque','church','cooperative','association','ngo','business','event','other']),
+  organization_description: z.string().max(1000).optional(),
+  organization_email: z.string().email().optional(),
+  organization_phone: z.string().max(20).optional(),
+  organization_address: z.string().max(500).optional(),
 });
 
 export const loginSchema = z.object({

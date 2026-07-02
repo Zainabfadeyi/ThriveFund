@@ -134,11 +134,34 @@ export const goalsRepository = {
     return rows[0] ?? null;
   },
 
+  async markCompleted(goalId: string): Promise<GoalRow | null> {
+    const result = await execute(
+      `UPDATE goals
+       SET status = 'completed', completed_at = COALESCE(completed_at, NOW()), updated_at = NOW()
+       WHERE id = ? AND status <> 'completed'`,
+      [goalId],
+    );
+    if (!result.affectedRows) {
+      const current = await query<GoalRow>('SELECT * FROM goals WHERE id = ?', [goalId]);
+      return current[0] ?? null;
+    }
+    const rows = await query<GoalRow>('SELECT * FROM goals WHERE id = ?', [goalId]);
+    return rows[0] ?? null;
+  },
+
   async incrementAmount(goalId: string, amount: number) {
     await execute(
       'UPDATE goals SET current_amount = current_amount + ?, updated_at = NOW() WHERE id = ?',
       [amount, goalId],
     );
+  },
+
+  async findCompletionState(goalId: string): Promise<GoalRow | null> {
+    const rows = await query<GoalRow>(
+      'SELECT id, user_id, organization_id, title, current_amount, target_amount, status FROM goals WHERE id = ?',
+      [goalId],
+    );
+    return rows[0] ?? null;
   },
 
   async findOwnerByGoalId(goalId: string): Promise<{ user_id: string; title: string; email: string } | null> {
@@ -160,5 +183,45 @@ export const goalsRepository = {
       [slug, slug],
     );
     return rows[0] ?? null;
+  },
+
+  async exportPack(goalId: string, userId?: string) {
+    const userWhere = userId ? 'AND g.user_id = ?' : '';
+    const userValues = userId ? [userId] : [];
+    const goals = await query(
+      `SELECT g.*, o.name AS organization_name
+       FROM goals g
+       LEFT JOIN organizations o ON o.id = g.organization_id
+       WHERE g.id = ? ${userWhere}`,
+      [goalId, ...userValues],
+    );
+    if (!goals[0]) return null;
+
+    const [transactions, contributors, virtualAccounts, reconciliation] = await Promise.all([
+      query(
+        `SELECT reference, provider_reference, contributor_name, amount, status, paid_at, created_at
+         FROM transactions WHERE goal_id = ? ORDER BY paid_at DESC`,
+        [goalId],
+      ),
+      query(
+        `SELECT name, email, phone_number, group_label, expected_amount, unique_reference, created_at
+         FROM contributors WHERE goal_id = ? ORDER BY created_at DESC`,
+        [goalId],
+      ),
+      query(
+        `SELECT account_number, account_name, bank_name, provider_reference, status, created_at
+         FROM virtual_accounts WHERE goal_id = ? ORDER BY created_at DESC`,
+        [goalId],
+      ),
+      query(
+        `SELECT rr.status, rr.notes, rr.processed_at, rr.created_at, p.amount, p.payer_name, p.provider_reference
+         FROM reconciliation_records rr
+         LEFT JOIN payments p ON p.id = rr.payment_id
+         WHERE rr.goal_id = ? ORDER BY rr.created_at DESC`,
+        [goalId],
+      ),
+    ]);
+
+    return { goal: goals[0], transactions, contributors, virtual_accounts: virtualAccounts, reconciliation };
   },
 };

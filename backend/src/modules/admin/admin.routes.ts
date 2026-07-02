@@ -16,6 +16,12 @@ adminRouter.post('/reconciliation/:id/resolve', adminController.resolveReconcili
 adminRouter.get('/webhook-events', adminController.listWebhookEvents);
 adminRouter.post('/webhook-events/:id/retry', adminController.retryWebhookEvent);
 
+adminRouter.get('/organizations', adminController.listOrganizations);
+adminRouter.get('/organizations/:id', adminController.getOrganization);
+adminRouter.patch('/organizations/:id', adminController.updateOrganization);
+
 adminRouter.get('/users', adminController.listUsers);
 adminRouter.get('/goals', adminController.listGoals);
+adminRouter.patch('/goals/:id/status', adminController.updateGoalStatus);
+adminRouter.get('/goals/:id/export', adminController.exportGoal);
 adminRouter.get('/transactions', adminController.listTransactions);

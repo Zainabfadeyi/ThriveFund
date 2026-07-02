@@ -11,6 +11,8 @@ import { notificationsRepository } from '../notifications/notifications.reposito
 import { webhooksRepository } from '../webhooks/webhooks.repository';
 import { sendPaymentReceivedEmail } from '../../lib/email';
 import { execute } from '../../config/database';
+import { getPaymentProvider } from '../../providers/payment';
+import { broadcastRealtime } from '../../lib/realtime';
 import type { ResolveReconciliationDto } from './reconciliation.validators';
 
 interface PaymentRecord {
@@ -78,6 +80,39 @@ export const reconciliationService = {
     await webhooksRepository.markStatus(payment.provider_reference, 'processed');
 
     const goal = await goalsRepository.findOwnerByGoalId(goalId);
+    broadcastRealtime({
+      type: 'transaction.created',
+      user_id: goal?.user_id as string | undefined,
+      organization_id: orgId,
+      goal_id: goalId,
+      data: {
+        transaction_id: txnId,
+        amount: Number(payment.amount),
+        payer_name: payment.payer_name,
+        status: txnStatus,
+      },
+    });
+
+    const completion = txnStatus === TransactionStatus.Successful
+      ? await this.completeCampaignIfTargetReached(goalId, va as Record<string, unknown>)
+      : null;
+
+    const completionState = await goalsRepository.findCompletionState(goalId);
+    if (completionState) {
+      broadcastRealtime({
+        type: 'campaign.balance_updated',
+        user_id: completionState.user_id as string,
+        organization_id: completionState.organization_id as string | null,
+        goal_id: goalId,
+        data: {
+          current_amount: Number(completionState.current_amount),
+          target_amount: Number(completionState.target_amount),
+          status: completionState.status,
+          completed: Boolean(completion?.completed),
+        },
+      });
+    }
+
     if (goal && txnStatus === TransactionStatus.Successful) {
       await notificationsRepository.insert({
         id: `ntf_${uuid().replace(/-/g, '').slice(0, 12)}`,
@@ -103,7 +138,56 @@ export const reconciliationService = {
       metadata: { goal_id: goalId, transaction_id: txnId, amount: payment.amount },
     });
 
-    return { matched: true, reconciliation: rec, transaction_id: txnId };
+    return { matched: true, reconciliation: rec, transaction_id: txnId, completed: Boolean(completion?.completed) };
+  },
+
+  async completeCampaignIfTargetReached(goalId: string, virtualAccount: Record<string, unknown>) {
+    const goal = await goalsRepository.findCompletionState(goalId);
+    if (!goal) return null;
+    const currentAmount = Number(goal.current_amount);
+    const targetAmount = Number(goal.target_amount);
+    if (currentAmount < targetAmount || (goal.status as string) === 'completed') return null;
+
+    const provider = getPaymentProvider();
+    const expireIdentifier = (virtualAccount.provider_reference as string) || (virtualAccount.account_number as string);
+    const expiry = await provider.expireVirtualAccount(expireIdentifier);
+    await virtualAccountsRepository.markInactive(virtualAccount.id as string);
+    const updatedGoal = await goalsRepository.markCompleted(goalId);
+
+    await notificationsRepository.insert({
+      id: `ntf_${uuid().replace(/-/g, '').slice(0, 12)}`,
+      user_id: goal.user_id as string,
+      type: 'campaign_completed',
+      title: 'Campaign target reached',
+      body: `${goal.title as string} reached its target and the collection account was expired.`,
+    });
+
+    await logAudit({
+      action: AuditAction.GoalCompleted,
+      actor_id: goal.user_id as string,
+      organization_id: goal.organization_id as string | null,
+      resource_type: 'goal',
+      resource_id: goalId,
+      metadata: {
+        current_amount: currentAmount,
+        target_amount: targetAmount,
+        expired_virtual_account: expiry.expired,
+      },
+    });
+
+    broadcastRealtime({
+      type: 'campaign.completed',
+      user_id: goal.user_id as string,
+      organization_id: goal.organization_id as string | null,
+      goal_id: goalId,
+      data: {
+        current_amount: Number(updatedGoal?.current_amount ?? currentAmount),
+        target_amount: targetAmount,
+        virtual_account_id: virtualAccount.id,
+      },
+    });
+
+    return { completed: true, goal: updatedGoal, expiry };
   },
 
   async list(userId: string, query: {

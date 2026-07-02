@@ -56,8 +56,47 @@ export const adminController = {
 
   async listGoals(req: Request, res: Response, next: NextFunction) {
     try {
-      const data = await adminService.listGoals({ page: Number(req.query.page ?? 1) });
+      const data = await adminService.listGoalsEnhanced({
+        page: Number(req.query.page ?? 1),
+        per_page: req.query.per_page ? Number(req.query.per_page) : undefined,
+        organization_id: req.query.organization_id as string | undefined,
+        status: req.query.status as string | undefined,
+        q: req.query.q as string | undefined,
+      });
       ok(res, data);
+    } catch (err) { next(err); }
+  },
+
+  async listOrganizations(req: Request, res: Response, next: NextFunction) {
+    try {
+      const data = await adminService.listOrganizations({
+        q: req.query.q as string | undefined,
+        type: req.query.type as string | undefined,
+        page: req.query.page ? Number(req.query.page) : undefined,
+        per_page: req.query.per_page ? Number(req.query.per_page) : undefined,
+      });
+      ok(res, data);
+    } catch (err) { next(err); }
+  },
+
+  async getOrganization(req: Request, res: Response, next: NextFunction) {
+    try { ok(res, await adminService.getOrganization(req.params.id)); } catch (err) { next(err); }
+  },
+
+  async updateOrganization(req: Request, res: Response, next: NextFunction) {
+    try { ok(res, await adminService.updateOrganization(req.params.id, req.body)); } catch (err) { next(err); }
+  },
+
+  async updateGoalStatus(req: Request, res: Response, next: NextFunction) {
+    try { ok(res, await adminService.updateGoalStatus(req.params.id, req.body)); } catch (err) { next(err); }
+  },
+
+  async exportGoal(req: Request, res: Response, next: NextFunction) {
+    try {
+      const csv = await adminService.exportGoal(req.params.id);
+      res.setHeader('Content-Type', 'text/csv');
+      res.setHeader('Content-Disposition', `attachment; filename="campaign-${req.params.id}.csv"`);
+      res.send(csv);
     } catch (err) { next(err); }
   },
 

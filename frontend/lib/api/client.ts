@@ -38,6 +38,10 @@ export function clearTokens() {
 export const API_BASE =
   process.env.NEXT_PUBLIC_API_BASE_URL ?? 'https://api.thrivefund.live/api/v1';
 
+export const WS_BASE =
+  process.env.NEXT_PUBLIC_WS_BASE_URL ??
+  API_BASE.replace(/^https:/, 'wss:').replace(/^http:/, 'ws:').replace(/\/api\/v1$/, '/ws');
+
 type RequestOptions = RequestInit & {
   params?: Record<string, string | number | boolean | undefined>;
   skipAuth?: boolean;

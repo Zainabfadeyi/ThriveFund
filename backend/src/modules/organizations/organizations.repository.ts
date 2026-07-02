@@ -27,6 +27,57 @@ export const organizationsRepository = {
     return rows[0] ?? null;
   },
 
+  async findDetailById(id: string) {
+    const org = await this.findById(id);
+    if (!org) return null;
+
+    const campaigns = await query(
+      `SELECT g.*,
+              ROUND((g.current_amount / NULLIF(g.target_amount, 0)) * 100, 1) AS progress_percent,
+              (SELECT COUNT(*) FROM contributors c WHERE c.goal_id = g.id) AS contributors_count
+       FROM goals g
+       WHERE g.organization_id = ?
+       ORDER BY g.created_at DESC
+       LIMIT 50`,
+      [id],
+    );
+
+    const recentTransactions = await query(
+      `SELECT t.*, g.title AS goal_title, o.name AS organization_name
+       FROM transactions t
+       JOIN goals g ON g.id = t.goal_id
+       LEFT JOIN organizations o ON o.id = g.organization_id
+       WHERE g.organization_id = ?
+       ORDER BY COALESCE(t.paid_at, t.created_at) DESC
+       LIMIT 15`,
+      [id],
+    );
+
+    const totals = await query<{
+      campaigns_count: number;
+      total_collected: number | string | null;
+      total_target: number | string | null;
+      active_campaigns: number;
+      completed_campaigns: number;
+    }>(
+      `SELECT COUNT(*) AS campaigns_count,
+              COALESCE(SUM(current_amount), 0) AS total_collected,
+              COALESCE(SUM(target_amount), 0) AS total_target,
+              SUM(CASE WHEN status = 'active' THEN 1 ELSE 0 END) AS active_campaigns,
+              SUM(CASE WHEN status = 'completed' THEN 1 ELSE 0 END) AS completed_campaigns
+       FROM goals
+       WHERE organization_id = ?`,
+      [id],
+    );
+
+    return {
+      ...org,
+      ...(totals[0] ?? {}),
+      campaigns,
+      recent_transactions: recentTransactions,
+    };
+  },
+
   async canAccess(id: string, userId: string): Promise<boolean> {
     const rows = await query<{ id: string }>(
       `SELECT o.id
@@ -54,8 +105,20 @@ export const organizationsRepository = {
       [userId, userId],
     );
     const rows = await query(
-      `SELECT DISTINCT o.* FROM organizations o
+      `SELECT DISTINCT o.*,
+              COALESCE(gt.campaigns_count, 0) AS campaigns_count,
+              COALESCE(gt.total_collected, 0) AS total_collected,
+              COALESCE(gt.total_target, 0) AS total_target
+       FROM organizations o
        LEFT JOIN organization_members om ON om.organization_id = o.id
+       LEFT JOIN (
+         SELECT organization_id,
+                COUNT(*) AS campaigns_count,
+                COALESCE(SUM(current_amount), 0) AS total_collected,
+                COALESCE(SUM(target_amount), 0) AS total_target
+         FROM goals
+         GROUP BY organization_id
+       ) gt ON gt.organization_id = o.id
        WHERE o.owner_id = ? OR om.user_id = ?
        ORDER BY o.created_at DESC LIMIT ? OFFSET ?`,
       [userId, userId, perPage, offset],

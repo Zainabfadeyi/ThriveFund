@@ -49,10 +49,10 @@ export const organizationsService = {
   },
 
   async getById(userId: string, orgId: string) {
-    const org = await organizationsRepository.findById(orgId);
+    const org = await organizationsRepository.findDetailById(orgId);
     if (!org) throw Errors.notFound('Organization');
     const isMember = await organizationMembersRepository.isMember(orgId, userId);
-    if (!isMember && (org as { owner_id: string }).owner_id !== userId) {
+    if (!isMember && (org as unknown as { owner_id: string }).owner_id !== userId) {
       throw Errors.forbidden();
     }
     return org;

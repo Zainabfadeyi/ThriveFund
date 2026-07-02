@@ -3,7 +3,7 @@
 import Link from 'next/link';
 
 import { usePathname } from 'next/navigation';
-import { Copy, QrCode, Share2, ArrowLeft, Plus } from 'lucide-react';
+import { Copy, QrCode, Share2, ArrowLeft, Plus, Download, CheckCircle2 } from 'lucide-react';
 import { QRCodeSVG } from 'qrcode.react';
 import { toast } from 'sonner';
 import { PageHeader } from '@/components/shared/page-header';
@@ -21,6 +21,7 @@ import {
   useGoalContributors,
   useGoalShare,
   useCreateVirtualAccount,
+  useExportCampaign,
 } from '@/hooks/use-api';
 import { formatNaira, getInitials } from '@/lib/utils';
 import { getAuthErrorMessage } from '@/contexts/auth-context';
@@ -36,6 +37,7 @@ export default function CampaignDetailClient() {
   const { data: members } = useGoalContributors(id);
   const { data: share } = useGoalShare(id);
   const createVa = useCreateVirtualAccount();
+  const exportCampaign = useExportCampaign();
 
   if (isLoading) return <LoadingState />;
   if (error && !campaign) {
@@ -63,12 +65,29 @@ export default function CampaignDetailClient() {
 
   const progress = Number(campaign.progress_percent ?? 0);
   const publicUrl = share?.public_url ?? (campaign.slug ? window.location.origin + '/c/' + campaign.slug : '');
+  const isCompleted = campaign.status === 'completed';
 
   const handleCreateVa = async () => {
     try {
       await createVa.mutateAsync(id);
       toast.success('Virtual account created');
       refetchVa();
+    } catch (err) {
+      toast.error(getAuthErrorMessage(err));
+    }
+  };
+
+  const handleExport = async () => {
+    try {
+      const res = await exportCampaign.mutateAsync(id);
+      const blob = new Blob([res.data], { type: 'text/csv;charset=utf-8' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `campaign-${campaign.id}.csv`;
+      a.click();
+      URL.revokeObjectURL(url);
+      toast.success('Campaign export downloaded');
     } catch (err) {
       toast.error(getAuthErrorMessage(err));
     }
@@ -85,10 +104,25 @@ export default function CampaignDetailClient() {
         description={campaign.category + ' · ' + campaign.status}
         action={
           <div className="flex gap-2">
+            <Button variant="outline" onClick={handleExport} disabled={exportCampaign.isPending}>
+              <Download className="h-4 w-4" /> Export
+            </Button>
             {campaign.slug && <Button variant="outline" asChild><Link href={'/c/' + campaign.slug}><Share2 className="h-4 w-4" /> Public</Link></Button>}
           </div>
         }
       />
+
+      {isCompleted && (
+        <div className="mb-6 rounded-lg border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-900">
+          <div className="flex items-start gap-3">
+            <CheckCircle2 className="mt-0.5 h-5 w-5 shrink-0" />
+            <div>
+              <p className="font-semibold">Target reached. This campaign is inactive for collections.</p>
+              <p className="mt-1 text-emerald-800">The virtual account is expired or pending expiry, and contributors should no longer transfer to it. Manual close-out/payout stays under organization control.</p>
+            </div>
+          </div>
+        </div>
+      )}
 
       <div className="mb-8 grid gap-4 sm:grid-cols-4">
         <Card><CardContent className="p-5"><p className="text-sm text-muted-foreground">Collected</p><p className="text-2xl font-bold">{formatNaira(Number(campaign.current_amount))}</p></CardContent></Card>
@@ -105,14 +139,22 @@ export default function CampaignDetailClient() {
           <CardContent className="space-y-4">
             {va ? (
               <>
-                <div className="rounded-xl border border-dashed border-primary/30 bg-primary/5 p-5">
+                <div className={`rounded-xl border border-dashed p-5 ${isCompleted || va.status === 'inactive' ? 'border-emerald-300 bg-emerald-50' : 'border-primary/30 bg-primary/5'}`}>
                   <p className="text-xs uppercase text-muted-foreground">Account Number</p>
                   <p className="text-2xl font-bold tracking-wider">{va.account_number}</p>
                   <p className="mt-2 text-sm">{va.bank_name} · {va.account_name}</p>
+                  {(isCompleted || va.status === 'inactive') && <p className="mt-3 text-sm font-medium text-emerald-800">Expired for new collections</p>}
                 </div>
-                <Button variant="outline" onClick={() => { navigator.clipboard.writeText(va.account_number); toast.success('Copied'); }}>
-                  <Copy className="h-4 w-4" /> Copy Number
-                </Button>
+                {!isCompleted && va.status !== 'inactive' && (
+                  <Button variant="outline" onClick={() => { navigator.clipboard.writeText(va.account_number); toast.success('Copied'); }}>
+                    <Copy className="h-4 w-4" /> Copy Number
+                  </Button>
+                )}
+                {isCompleted && (
+                  <Button variant="outline" disabled>
+                    Manual Close-Out Ready
+                  </Button>
+                )}
               </>
             ) : (
               <>
@@ -167,7 +209,7 @@ export default function CampaignDetailClient() {
         </Card>
 
         <Card>
-          <CardHeader><CardTitle>Recent Payments</CardTitle></CardHeader>
+          <CardHeader><CardTitle>Payment Activity</CardTitle></CardHeader>
           <CardContent className="p-0">
             <Table>
               <TableHeader><TableRow><TableHead>Payer</TableHead><TableHead>Amount</TableHead><TableHead>Status</TableHead></TableRow></TableHeader>

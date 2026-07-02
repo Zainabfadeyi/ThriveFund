@@ -1,6 +1,8 @@
 import { app } from './app';
 import { env } from './config/env';
 import { db } from './config/database';
+import http from 'http';
+import { attachRealtime } from './lib/realtime';
 
 async function bootstrap() {
   try {
@@ -11,7 +13,10 @@ async function bootstrap() {
     process.exit(1);
   }
 
-  app.listen(env.PORT, () => {
+  const server = http.createServer(app);
+  attachRealtime(server);
+
+  server.listen(env.PORT, () => {
     console.log(`ThriveFund API running on port ${env.PORT} [${env.NODE_ENV}]`);
   });
 }
