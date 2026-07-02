@@ -35,6 +35,7 @@ export const transactionsController = {
         status:   req.query.status as string | undefined,
         from:     req.query.from as string | undefined,
         to:       req.query.to as string | undefined,
+        q:        req.query.q as string | undefined,
         page:     req.query.page ? Number(req.query.page) : undefined,
         per_page: req.query.per_page ? Number(req.query.per_page) : undefined,
       });

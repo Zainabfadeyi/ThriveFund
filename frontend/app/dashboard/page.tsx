@@ -11,7 +11,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { useDashboard, useReconciliationOverview, useAnalyticsMonthly, useGoals, useOrganizations } from '@/hooks/use-api';
+import { useDashboard, useReconciliationOverview, useAnalyticsMonthly, useGoals, usePayoutAccounts } from '@/hooks/use-api';
 import { formatNaira } from '@/lib/utils';
 import { getAuthErrorMessage } from '@/contexts/auth-context';
 
@@ -19,8 +19,8 @@ export default function DashboardPage() {
   const { data: overview, isLoading, error, refetch } = useDashboard();
   const { data: recon } = useReconciliationOverview();
   const { data: monthly } = useAnalyticsMonthly();
-  const { data: organizations } = useOrganizations();
   const { data: goals } = useGoals();
+  const { data: payoutAccounts } = usePayoutAccounts();
 
   if (isLoading) return <LoadingState message="Loading dashboard..." />;
   if (error) return <ErrorState message={getAuthErrorMessage(error)} onRetry={() => refetch()} />;
@@ -28,8 +28,8 @@ export default function DashboardPage() {
 
   const pendingRecon = (recon?.unmatched ?? 0) + (recon?.pending ?? 0);
   const campaigns = goals?.data ?? overview.recent_goals ?? [];
-  const hasOrganizations = Boolean(organizations?.length);
   const hasCampaigns = Boolean(campaigns.length);
+  const hasPayoutAccount = Boolean(payoutAccounts?.length);
   const firstCampaign = campaigns[0];
 
   return (
@@ -40,17 +40,15 @@ export default function DashboardPage() {
         action={<Button asChild><Link href="/dashboard/campaigns/new">New Collection</Link></Button>}
       />
 
-      {(!hasOrganizations || !hasCampaigns || firstCampaign) && (
+      {(!hasCampaigns || firstCampaign) && (
         <Card className="mb-8 border-primary/20">
           <CardContent className="p-5">
             <div className="mb-4 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
               <div>
                 <h2 className="font-semibold text-thrive-dark">Setup flow</h2>
-                <p className="text-sm text-muted-foreground">Create organization → create campaign → generate virtual account → share link.</p>
+                <p className="text-sm text-muted-foreground">Create campaign → generate virtual account → share link → withdraw when completed.</p>
               </div>
-              {!hasOrganizations ? (
-                <Button asChild><Link href="/dashboard/organizations">Create Organization</Link></Button>
-              ) : !hasCampaigns ? (
+              {!hasCampaigns ? (
                 <Button asChild><Link href="/dashboard/campaigns/new">Create Collection</Link></Button>
               ) : (
                 <Button variant="outline" asChild><Link href={`/dashboard/campaigns/${firstCampaign.id}`}>Continue Setup</Link></Button>
@@ -58,10 +56,10 @@ export default function DashboardPage() {
             </div>
             <div className="grid gap-3 sm:grid-cols-4">
               {[
-                { label: 'Organization', done: hasOrganizations, icon: Building2 },
                 { label: 'Campaign', done: hasCampaigns, icon: Target },
                 { label: 'Virtual account', done: Boolean(firstCampaign?.virtual_account), icon: CreditCard },
                 { label: 'Share link', done: hasCampaigns, icon: Share2 },
+                { label: 'Payout account', done: hasPayoutAccount, icon: CreditCard },
               ].map(({ label, done, icon: Icon }) => (
                 <div key={label} className="flex items-center gap-2 rounded-lg border bg-white px-3 py-2 text-sm">
                   {done ? <CheckCircle2 className="h-4 w-4 text-primary" /> : <Icon className="h-4 w-4 text-muted-foreground" />}

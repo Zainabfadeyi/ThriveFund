@@ -225,3 +225,34 @@ export function webhookFailureEmail(eventType: string, reference: string, adminL
     ),
   };
 }
+
+export function withdrawalEmail(data: {
+  goalTitle: string;
+  amount: number;
+  accountName: string;
+  accountNumber: string;
+  bankName?: string | null;
+  status: 'initiated' | 'successful' | 'failed';
+  failureReason?: string;
+}) {
+  const statusLabel =
+    data.status === 'initiated' ? 'Withdrawal initiated' :
+    data.status === 'successful' ? 'Withdrawal successful' :
+    'Withdrawal failed';
+  return {
+    subject: `${statusLabel}: ${money(data.amount)} from ${data.goalTitle}`,
+    html: appLayout(
+      `${statusLabel} for ${data.goalTitle}.`,
+      `
+        <p>${statusLabel}.</p>
+        ${detailsTable([
+          ['Campaign', data.goalTitle],
+          ['Amount', money(data.amount)],
+          ['Destination', `${data.accountName} - ${data.bankName ?? 'Bank'} (${data.accountNumber})`],
+          ['Status', data.status],
+          ...(data.failureReason ? [['Reason', data.failureReason] as [string, string]] : []),
+        ])}
+      `,
+    ),
+  };
+}

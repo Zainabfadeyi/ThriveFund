@@ -3,6 +3,7 @@ import type {
   AdminOverview,
   AuthPayload,
   AuthTokens,
+  Bank,
   CategoryBreakdown,
   Contributor,
   DashboardOverview,
@@ -13,6 +14,7 @@ import type {
   MonthlyContribution,
   Notification,
   Organization,
+  PayoutAccount,
   PublicGoal,
   ReconciliationOverview,
   ReconciliationRecord,
@@ -22,6 +24,7 @@ import type {
   User,
   VirtualAccount,
   ContributorSummary,
+  Withdrawal,
 } from './types';
 
 export const authApi = {
@@ -77,12 +80,15 @@ export const goalsApi = {
     apiRequest<Goal>(`/goals/${id}`, { method: 'PATCH', body: JSON.stringify(body) }),
   delete: (id: string) => apiRequest<void>(`/goals/${id}`, { method: 'DELETE' }),
   close: (id: string) => apiRequest<Goal>(`/goals/${id}/close`, { method: 'POST' }),
+  withdraw: (id: string, body: { payout_account_id?: string; amount?: number; narration?: string }) =>
+    apiRequest<{ withdrawal: Withdrawal; transfer: unknown; available_before_withdrawal: number }>(`/goals/${id}/withdraw`, { method: 'POST', body: JSON.stringify(body) }),
+  withdrawals: (id: string) => apiRequest<Withdrawal[]>(`/goals/${id}/withdrawals`),
   share: (id: string) => apiRequest<ShareLink>(`/goals/${id}/share`),
   exportCsv: (id: string) => apiRequest<string>(`/goals/${id}/export`),
   createVirtualAccount: (id: string, body?: { account_name_suffix?: string; preferred_bank?: string }) =>
     apiRequest<VirtualAccount>(`/goals/${id}/virtual-account`, { method: 'POST', body: JSON.stringify(body ?? {}) }),
   getVirtualAccount: (id: string) => apiRequest<VirtualAccount>(`/goals/${id}/virtual-account`),
-  transactions: (id: string, params?: { page?: number; per_page?: number }) =>
+  transactions: (id: string, params?: { page?: number; per_page?: number; status?: string; from?: string; to?: string; q?: string }) =>
     apiRequest<Transaction[]>(`/goals/${id}/transactions`, { params }),
   contributors: (id: string) => apiRequest<Contributor[]>(`/goals/${id}/contributors`),
   contributorsSummary: (id: string) => apiRequest<ContributorSummary>(`/goals/${id}/contributors/summary`),
@@ -93,6 +99,16 @@ export const goalsApi = {
   sendReminders: (id: string) =>
     apiRequest<{ sent_count: number; recipients: Array<{ email: string; name: string; outstanding_amount: number }> }>(`/goals/${id}/invitations/reminders`, { method: 'POST' }),
   listInvitations: (id: string) => apiRequest<Invitation[]>(`/goals/${id}/invitations`),
+};
+
+export const payoutAccountsApi = {
+  list: () => apiRequest<PayoutAccount[]>('/payout-accounts'),
+  verify: (body: { account_number: string; bank_code: string }) =>
+    apiRequest<{ account_number: string; account_name: string; bank_code: string; bank_name?: string | null; provider: string }>('/payout-accounts/verify', { method: 'POST', body: JSON.stringify(body) }),
+  create: (body: { account_number: string; bank_code: string; bank_name?: string; account_name: string; is_default?: boolean }) =>
+    apiRequest<PayoutAccount>('/payout-accounts', { method: 'POST', body: JSON.stringify(body) }),
+  setDefault: (id: string) => apiRequest<PayoutAccount>(`/payout-accounts/${id}/default`, { method: 'PATCH' }),
+  delete: (id: string) => apiRequest<void>(`/payout-accounts/${id}`, { method: 'DELETE' }),
 };
 
 export const virtualAccountsApi = {
@@ -107,8 +123,17 @@ export const transactionsApi = {
     apiRequest<string>('/transactions/export', { params }),
 };
 
+export const withdrawalsApi = {
+  list: (params?: { goal_id?: string; status?: string; page?: number; per_page?: number }) =>
+    apiRequest<Withdrawal[]>('/withdrawals', { params }),
+};
+
 export const contributorsApi = {
   listAll: () => apiRequest<Contributor[]>('/contributors'),
+};
+
+export const banksApi = {
+  supported: () => apiRequest<Bank[]>('/banks/supported'),
 };
 
 export const reconciliationApi = {

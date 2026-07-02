@@ -1,6 +1,7 @@
 'use client';
 
 import Link from 'next/link';
+import { useState } from 'react';
 
 import { usePathname } from 'next/navigation';
 import { Copy, QrCode, Share2, ArrowLeft, Plus, Download, CheckCircle2 } from 'lucide-react';
@@ -12,6 +13,8 @@ import { LoadingState, ErrorState } from '@/components/shared/query-states';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
+import { Input } from '@/components/ui/input';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import {
@@ -22,6 +25,9 @@ import {
   useGoalShare,
   useCreateVirtualAccount,
   useExportCampaign,
+  usePayoutAccounts,
+  useCreateWithdrawal,
+  useGoalWithdrawals,
 } from '@/hooks/use-api';
 import { formatNaira, getInitials } from '@/lib/utils';
 import { getAuthErrorMessage } from '@/contexts/auth-context';
@@ -33,11 +39,21 @@ export default function CampaignDetailClient() {
   const id = pathname.split('/').filter(Boolean).pop() ?? '';
   const { data: campaign, isLoading, error, refetch } = useGoal(id);
   const { data: va, refetch: refetchVa } = useGoalVirtualAccount(id);
-  const { data: txns } = useGoalTransactions(id);
+  const [txnStatus, setTxnStatus] = useState('all');
+  const [txnSearch, setTxnSearch] = useState('');
+  const { data: txns } = useGoalTransactions(id, {
+    status: txnStatus === 'all' ? undefined : txnStatus,
+    q: txnSearch || undefined,
+  });
   const { data: members } = useGoalContributors(id);
   const { data: share } = useGoalShare(id);
+  const { data: payoutAccounts } = usePayoutAccounts();
+  const { data: withdrawals } = useGoalWithdrawals(id);
   const createVa = useCreateVirtualAccount();
   const exportCampaign = useExportCampaign();
+  const createWithdrawal = useCreateWithdrawal(id);
+  const [withdrawalAmount, setWithdrawalAmount] = useState('');
+  const [selectedPayoutId, setSelectedPayoutId] = useState('');
 
   if (isLoading) return <LoadingState />;
   if (error && !campaign) {
@@ -66,6 +82,12 @@ export default function CampaignDetailClient() {
   const progress = Number(campaign.progress_percent ?? 0);
   const publicUrl = share?.public_url ?? (campaign.slug ? window.location.origin + '/c/' + campaign.slug : '');
   const isCompleted = campaign.status === 'completed';
+  const reservedWithdrawals = (withdrawals ?? [])
+    .filter((w) => ['pending', 'processing', 'successful'].includes(w.status))
+    .reduce((sum, w) => sum + Number(w.amount), 0);
+  const availableForWithdrawal = Math.max(0, Number(campaign.current_amount) - reservedWithdrawals);
+  const defaultPayout = payoutAccounts?.find((account) => Boolean(account.is_default)) ?? payoutAccounts?.[0];
+  const payoutId = selectedPayoutId || defaultPayout?.id || '';
 
   const handleCreateVa = async () => {
     try {
@@ -88,6 +110,19 @@ export default function CampaignDetailClient() {
       a.click();
       URL.revokeObjectURL(url);
       toast.success('Campaign export downloaded');
+    } catch (err) {
+      toast.error(getAuthErrorMessage(err));
+    }
+  };
+
+  const handleWithdraw = async () => {
+    try {
+      await createWithdrawal.mutateAsync({
+        payout_account_id: payoutId || undefined,
+        amount: withdrawalAmount ? Number(withdrawalAmount) : undefined,
+      });
+      setWithdrawalAmount('');
+      toast.success('Withdrawal submitted');
     } catch (err) {
       toast.error(getAuthErrorMessage(err));
     }
@@ -181,6 +216,75 @@ export default function CampaignDetailClient() {
         </Card>
       </div>
 
+      {isCompleted && (
+        <Card className="mb-8">
+          <CardHeader><CardTitle>Withdraw Funds</CardTitle></CardHeader>
+          <CardContent className="space-y-4">
+            <div className="grid gap-4 sm:grid-cols-3">
+              <div>
+                <p className="text-sm text-muted-foreground">Collected</p>
+                <p className="text-xl font-bold">{formatNaira(Number(campaign.current_amount))}</p>
+              </div>
+              <div>
+                <p className="text-sm text-muted-foreground">Already Withdrawn / Reserved</p>
+                <p className="text-xl font-bold">{formatNaira(reservedWithdrawals)}</p>
+              </div>
+              <div>
+                <p className="text-sm text-muted-foreground">Available</p>
+                <p className="text-xl font-bold text-primary">{formatNaira(availableForWithdrawal)}</p>
+              </div>
+            </div>
+            {!payoutAccounts?.length ? (
+              <div className="rounded-lg border bg-muted/40 p-4 text-sm text-muted-foreground">
+                Add a verified payout account in Settings before withdrawing.
+                <Button className="mt-3" variant="outline" size="sm" asChild><Link href="/dashboard/settings">Open Settings</Link></Button>
+              </div>
+            ) : (
+              <div className="grid gap-3 sm:grid-cols-[1fr_180px_auto]">
+                <Select value={payoutId} onValueChange={setSelectedPayoutId}>
+                  <SelectTrigger><SelectValue placeholder="Payout account" /></SelectTrigger>
+                  <SelectContent>
+                    {payoutAccounts.map((account) => (
+                      <SelectItem key={account.id} value={account.id}>
+                        {account.account_name} - {account.bank_name ?? account.bank_code} ({account.account_number.slice(-4)})
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <Input
+                  type="number"
+                  min="1"
+                  max={availableForWithdrawal}
+                  placeholder="Amount"
+                  value={withdrawalAmount}
+                  onChange={(e) => setWithdrawalAmount(e.target.value)}
+                />
+                <Button onClick={handleWithdraw} disabled={!payoutId || availableForWithdrawal <= 0 || createWithdrawal.isPending}>
+                  Withdraw
+                </Button>
+              </div>
+            )}
+            {!!withdrawals?.length && (
+              <div className="rounded-lg border">
+                <Table>
+                  <TableHeader><TableRow><TableHead>Amount</TableHead><TableHead>Destination</TableHead><TableHead>Status</TableHead><TableHead>Date</TableHead></TableRow></TableHeader>
+                  <TableBody>
+                    {withdrawals.map((w) => (
+                      <TableRow key={w.id}>
+                        <TableCell>{formatNaira(Number(w.amount))}</TableCell>
+                        <TableCell>{w.account_name} · {w.bank_name ?? ''}</TableCell>
+                        <TableCell><StatusBadge status={w.status} /></TableCell>
+                        <TableCell>{w.created_at ? new Date(w.created_at).toLocaleDateString('en-NG') : '-'}</TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      )}
+
       <div className="grid gap-6 lg:grid-cols-2">
         <Card>
           <CardHeader><CardTitle>Contributors</CardTitle></CardHeader>
@@ -211,6 +315,18 @@ export default function CampaignDetailClient() {
         <Card>
           <CardHeader><CardTitle>Payment Activity</CardTitle></CardHeader>
           <CardContent className="p-0">
+            <div className="flex flex-col gap-3 border-b p-4 sm:flex-row">
+              <Input placeholder="Search payer or reference" value={txnSearch} onChange={(e) => setTxnSearch(e.target.value)} />
+              <Select value={txnStatus} onValueChange={setTxnStatus}>
+                <SelectTrigger className="sm:w-44"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All statuses</SelectItem>
+                  <SelectItem value="successful">Successful</SelectItem>
+                  <SelectItem value="pending">Pending</SelectItem>
+                  <SelectItem value="failed">Failed</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
             <Table>
               <TableHeader><TableRow><TableHead>Payer</TableHead><TableHead>Amount</TableHead><TableHead>Status</TableHead></TableRow></TableHeader>
               <TableBody>

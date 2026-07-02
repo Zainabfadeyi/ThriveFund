@@ -4,7 +4,6 @@ import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import {
   LayoutDashboard,
-  Building2,
   Target,
   CreditCard,
   ArrowLeftRight,
@@ -30,13 +29,13 @@ const navItems = [
   { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard, exact: true },
   { href: '/dashboard/campaigns', label: 'Campaigns', icon: Target },
   { href: '/dashboard/transactions', label: 'Transactions', icon: ArrowLeftRight },
+  { href: '/dashboard/payouts', label: 'Payouts', icon: CreditCard },
   { href: '/dashboard/reconciliation', label: 'Reconciliation', icon: RefreshCw },
   { href: '/dashboard/contributors', label: 'Contributors', icon: Users },
   { href: '/dashboard/reports', label: 'Reports', icon: FileText },
 ];
 
 const secondaryNavItems = [
-  { href: '/dashboard/organizations', label: 'Organizations', icon: Building2 },
   { href: '/dashboard/virtual-accounts', label: 'Virtual Accounts', icon: CreditCard },
   { href: '/dashboard/invitations', label: 'Invitations', icon: Mail },
   { href: '/dashboard/analytics', label: 'Analytics', icon: BarChart3 },

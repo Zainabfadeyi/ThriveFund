@@ -33,6 +33,11 @@ export interface AuthPayload {
   tokens: AuthTokens;
 }
 
+export interface Bank {
+  code: string;
+  name: string;
+}
+
 export interface User {
   id: string;
   full_name: string;
@@ -103,6 +108,40 @@ export interface VirtualAccount {
   goal_title?: string;
   expired_at?: string | null;
   created_at?: string;
+}
+
+export interface PayoutAccount {
+  id: string;
+  user_id: string;
+  organization_id?: string | null;
+  provider: string;
+  bank_code: string;
+  bank_name?: string | null;
+  account_number: string;
+  account_name: string;
+  is_default: boolean | number;
+  verified_at?: string | null;
+  created_at?: string;
+}
+
+export interface Withdrawal {
+  id: string;
+  goal_id: string;
+  organization_id?: string | null;
+  user_id: string;
+  payout_account_id: string;
+  provider: string;
+  provider_reference?: string | null;
+  amount: number;
+  fee?: number | null;
+  status: string;
+  failure_reason?: string | null;
+  goal_title?: string;
+  bank_name?: string | null;
+  account_number?: string;
+  account_name?: string;
+  created_at?: string;
+  processed_at?: string | null;
 }
 
 export interface Transaction {

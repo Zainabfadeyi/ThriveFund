@@ -6,6 +6,7 @@ import { virtualAccountsController } from '../virtual-accounts/virtual-accounts.
 import { transactionsController } from '../transactions/transactions.controller';
 import { contributorsController } from '../contributors/contributors.controller';
 import { invitationsController } from '../invitations/invitations.controller';
+import { withdrawalsController } from '../withdrawals/withdrawals.controller';
 
 export const goalsRouter = Router();
 
@@ -21,6 +22,8 @@ goalsRouter.post('/:id/close', goalsController.close);
 goalsRouter.post('/:id/close-out', goalsController.closeOut);
 goalsRouter.get('/:id/share', goalsController.getShareLink);
 goalsRouter.get('/:id/export', goalsController.exportCampaign);
+goalsRouter.get('/:id/withdrawals', withdrawalsController.listByGoal);
+goalsRouter.post('/:id/withdraw', withdrawalsController.createForGoal);
 
 // Virtual account (nested)
 goalsRouter.post('/:id/virtual-account', virtualAccountsController.createForGoal);

@@ -6,16 +6,19 @@ import {
 import {
   adminApi,
   analyticsApi,
+  banksApi,
   contributorsApi,
   dashboardApi,
   goalsApi,
   notificationsApi,
   organizationsApi,
+  payoutAccountsApi,
   publicApi,
   reconciliationApi,
   reportsApi,
   transactionsApi,
   virtualAccountsApi,
+  withdrawalsApi,
 } from '@/lib/api/services';
 import { ApiError } from '@/lib/api/client';
 
@@ -31,6 +34,9 @@ export const queryKeys = {
   goalShare: (id: string) => ['goal-share', id] as const,
   organizations: ['organizations'] as const,
   virtualAccounts: ['virtual-accounts'] as const,
+  payoutAccounts: ['payout-accounts'] as const,
+  withdrawals: (params?: object) => ['withdrawals', params] as const,
+  goalWithdrawals: (id: string) => ['goal-withdrawals', id] as const,
   transactions: (params?: object) => ['transactions', params] as const,
   contributors: ['contributors'] as const,
   reconciliationOverview: ['reconciliation-overview'] as const,
@@ -53,6 +59,7 @@ export const queryKeys = {
   adminUsers: (params?: object) => ['admin-users', params] as const,
   publicGoal: (slug: string) => ['public-goal', slug] as const,
   publicVa: (slug: string) => ['public-va', slug] as const,
+  banks: ['banks'] as const,
 };
 
 export function useDashboard() {
@@ -106,10 +113,10 @@ export function useCreateVirtualAccount() {
   });
 }
 
-export function useGoalTransactions(id: string) {
+export function useGoalTransactions(id: string, params?: { status?: string; from?: string; to?: string; q?: string; page?: number }) {
   return useQuery({
-    queryKey: queryKeys.goalTxns(id),
-    queryFn: async () => (await goalsApi.transactions(id)).data,
+    queryKey: [...queryKeys.goalTxns(id), params] as const,
+    queryFn: async () => (await goalsApi.transactions(id, params)).data,
     enabled: !!id,
   });
 }
@@ -182,7 +189,81 @@ export function useVirtualAccounts() {
   });
 }
 
-export function useTransactions(params?: { status?: string; page?: number; q?: string }) {
+export function usePayoutAccounts() {
+  return useQuery({
+    queryKey: queryKeys.payoutAccounts,
+    queryFn: async () => (await payoutAccountsApi.list()).data,
+  });
+}
+
+export function useBanks() {
+  return useQuery({
+    queryKey: queryKeys.banks,
+    queryFn: async () => (await banksApi.supported()).data,
+  });
+}
+
+export function useVerifyPayoutAccount() {
+  return useMutation({
+    mutationFn: payoutAccountsApi.verify,
+  });
+}
+
+export function useCreatePayoutAccount() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: payoutAccountsApi.create,
+    onSuccess: () => qc.invalidateQueries({ queryKey: queryKeys.payoutAccounts }),
+  });
+}
+
+export function useSetDefaultPayoutAccount() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: payoutAccountsApi.setDefault,
+    onSuccess: () => qc.invalidateQueries({ queryKey: queryKeys.payoutAccounts }),
+  });
+}
+
+export function useDeletePayoutAccount() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: payoutAccountsApi.delete,
+    onSuccess: () => qc.invalidateQueries({ queryKey: queryKeys.payoutAccounts }),
+  });
+}
+
+export function useWithdrawals(params?: { goal_id?: string; status?: string; page?: number }) {
+  return useQuery({
+    queryKey: queryKeys.withdrawals(params),
+    queryFn: async () => {
+      const res = await withdrawalsApi.list(params);
+      return { data: res.data, meta: res.meta };
+    },
+  });
+}
+
+export function useGoalWithdrawals(id: string) {
+  return useQuery({
+    queryKey: queryKeys.goalWithdrawals(id),
+    queryFn: async () => (await goalsApi.withdrawals(id)).data,
+    enabled: !!id,
+  });
+}
+
+export function useCreateWithdrawal(goalId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (body: { payout_account_id?: string; amount?: number; narration?: string }) => goalsApi.withdraw(goalId, body),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: queryKeys.goal(goalId) });
+      qc.invalidateQueries({ queryKey: queryKeys.goalWithdrawals(goalId) });
+      qc.invalidateQueries({ queryKey: ['withdrawals'] });
+    },
+  });
+}
+
+export function useTransactions(params?: { goal_id?: string; status?: string; from?: string; to?: string; page?: number; q?: string }) {
   return useQuery({
     queryKey: queryKeys.transactions(params),
     queryFn: async () => {

@@ -79,12 +79,12 @@ export default function NewCampaignPage() {
             <div className="mb-4 flex h-11 w-11 items-center justify-center rounded-xl bg-primary/10">
               <Building2 className="h-5 w-5 text-primary" />
             </div>
-            <h2 className="mb-2 text-lg font-semibold">Create an organization first</h2>
+            <h2 className="mb-2 text-lg font-semibold">Organization profile missing</h2>
             <p className="mb-5 text-sm text-muted-foreground">
-              Collections belong to an organization so members, students, contributors, and reconciliation stay grouped correctly.
+              Collections belong to the organization created during signup. Please complete onboarding again or contact an admin if this keeps showing.
             </p>
             <Button asChild>
-              <Link href="/dashboard/organizations">Create Organization</Link>
+              <Link href="/dashboard/settings">Open Settings</Link>
             </Button>
           </CardContent>
         </Card>
@@ -92,16 +92,8 @@ export default function NewCampaignPage() {
       <Card className="max-w-2xl">
         <CardContent className="p-6">
           <form onSubmit={handleSubmit} className="space-y-4">
-            <div className="space-y-2">
-              <label className="text-sm font-medium">Organization</label>
-              <Select value={form.organization_id} onValueChange={(v) => setForm({ ...form, organization_id: v })}>
-                <SelectTrigger><SelectValue placeholder="Choose organization" /></SelectTrigger>
-                <SelectContent>
-                  {organizations.map((org) => (
-                    <SelectItem key={org.id} value={org.id}>{org.name}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+            <div className="rounded-lg border bg-muted/40 p-3 text-sm">
+              Organization: <span className="font-medium">{organizations[0].name}</span>
             </div>
             <Input placeholder="Campaign title" value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} required />
             <Input placeholder="Description" value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} />

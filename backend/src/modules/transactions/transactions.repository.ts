@@ -19,7 +19,10 @@ export const transactionsRepository = {
     if (filters.status)  { conditions.push('t.status = ?');               values.push(filters.status); }
     if (filters.from)    { conditions.push('t.paid_at >= ?');             values.push(filters.from); }
     if (filters.to)      { conditions.push('t.paid_at <= ?');             values.push(filters.to); }
-    if (filters.q)       { conditions.push('t.contributor_name LIKE ?'); values.push(`%${filters.q}%`); }
+    if (filters.q) {
+      conditions.push('(t.contributor_name LIKE ? OR t.reference LIKE ? OR t.provider_reference LIKE ?)');
+      values.push(`%${filters.q}%`, `%${filters.q}%`, `%${filters.q}%`);
+    }
 
     const where = conditions.join(' AND ');
     const countRows = await query<{ total: number }>(

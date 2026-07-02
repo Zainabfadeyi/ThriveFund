@@ -94,4 +94,8 @@ export enum AuditAction {
   OrganizationCreated = 'organization.created',
   InvitationSent = 'invitation.sent',
   WebhookReceived = 'webhook.received',
+  PayoutAccountCreated = 'payout_account.created',
+  WithdrawalCreated = 'withdrawal.created',
+  WithdrawalCompleted = 'withdrawal.completed',
+  WithdrawalFailed = 'withdrawal.failed',
 }

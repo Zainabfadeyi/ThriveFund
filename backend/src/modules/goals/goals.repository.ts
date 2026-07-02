@@ -134,6 +134,21 @@ export const goalsRepository = {
     return rows[0] ?? null;
   },
 
+  async markClosedOut(goalId: string, userId: string): Promise<GoalRow | null> {
+    const result = await execute(
+      `UPDATE goals
+       SET status = 'completed',
+           completed_at = COALESCE(completed_at, NOW()),
+           closed_at = COALESCE(closed_at, NOW()),
+           updated_at = NOW()
+       WHERE id = ? AND user_id = ?`,
+      [goalId, userId],
+    );
+    if (!result.affectedRows) return null;
+    const rows = await query<GoalRow>('SELECT * FROM goals WHERE id = ?', [goalId]);
+    return rows[0] ?? null;
+  },
+
   async markCompleted(goalId: string): Promise<GoalRow | null> {
     const result = await execute(
       `UPDATE goals

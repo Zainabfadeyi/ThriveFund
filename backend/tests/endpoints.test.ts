@@ -78,6 +78,8 @@ const endpoints: EndpointCase[] = [
   { method: 'POST', path: '/api/v1/goals/goal_123/close-out', auth: 'user', body: { account_number: '0123456789', account_name: 'Test User', bank_code: '058' } },
   { method: 'GET', path: '/api/v1/goals/goal_123/share', auth: 'user' },
   { method: 'GET', path: '/api/v1/goals/goal_123/export', auth: 'user', accept: 'text/csv' },
+  { method: 'GET', path: '/api/v1/goals/goal_123/withdrawals', auth: 'user' },
+  { method: 'POST', path: '/api/v1/goals/goal_123/withdraw', auth: 'user', body: { payout_account_id: 'poa_123', amount: 1000 } },
   { method: 'POST', path: '/api/v1/goals/goal_123/virtual-account', auth: 'user', body: {} },
   { method: 'GET', path: '/api/v1/goals/goal_123/virtual-account', auth: 'user' },
   { method: 'GET', path: '/api/v1/goals/goal_123/transactions', auth: 'user' },
@@ -90,6 +92,12 @@ const endpoints: EndpointCase[] = [
 
   { method: 'GET', path: '/api/v1/virtual-accounts', auth: 'user' },
   { method: 'GET', path: '/api/v1/virtual-accounts/va_123', auth: 'user' },
+  { method: 'GET', path: '/api/v1/payout-accounts', auth: 'user' },
+  { method: 'POST', path: '/api/v1/payout-accounts/verify', auth: 'user', body: { account_number: '0123456789', bank_code: '058' } },
+  { method: 'POST', path: '/api/v1/payout-accounts', auth: 'user', body: { account_number: '0123456789', account_name: 'Test User', bank_code: '058' } },
+  { method: 'PATCH', path: '/api/v1/payout-accounts/poa_123/default', auth: 'user' },
+  { method: 'DELETE', path: '/api/v1/payout-accounts/poa_123', auth: 'user' },
+  { method: 'GET', path: '/api/v1/withdrawals', auth: 'user' },
   { method: 'GET', path: '/api/v1/transactions/export', auth: 'user', accept: 'text/csv' },
   { method: 'GET', path: '/api/v1/transactions', auth: 'user' },
   { method: 'GET', path: '/api/v1/transactions/txn_123', auth: 'user' },
@@ -287,6 +295,8 @@ async function stubControllers() {
     organizationMembers,
     goals,
     virtualAccounts,
+    payoutAccounts,
+    withdrawals,
     transactions,
     payments,
     contributors,
@@ -309,6 +319,8 @@ async function stubControllers() {
     import('../src/modules/organization-members/organization-members.controller'),
     import('../src/modules/goals/goals.controller'),
     import('../src/modules/virtual-accounts/virtual-accounts.controller'),
+    import('../src/modules/payout-accounts/payout-accounts.controller'),
+    import('../src/modules/withdrawals/withdrawals.controller'),
     import('../src/modules/transactions/transactions.controller'),
     import('../src/modules/payments/payments.controller'),
     import('../src/modules/contributors/contributors.controller'),
@@ -333,6 +345,8 @@ async function stubControllers() {
   patchAll(goals.goalsController, jsonHandler);
   goals.goalsController.exportCampaign = csvHandler;
   patchAll(virtualAccounts.virtualAccountsController, jsonHandler);
+  patchAll(payoutAccounts.payoutAccountsController, jsonHandler);
+  patchAll(withdrawals.withdrawalsController, jsonHandler);
   patchAll(payments.paymentsController, jsonHandler);
   patchAll(contributors.contributorsController, jsonHandler);
   patchAll(invitations.invitationsController, jsonHandler);
