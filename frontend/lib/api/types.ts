@@ -315,6 +315,14 @@ export interface GoalPerformance {
   status: string;
 }
 
+export interface PublicPaymentActivity {
+  id: string;
+  amount: number;
+  status: string;
+  paid_at?: string;
+}
+
 export interface PublicGoal extends Goal {
   organization_name?: string;
+  recent_payments?: PublicPaymentActivity[];
 }

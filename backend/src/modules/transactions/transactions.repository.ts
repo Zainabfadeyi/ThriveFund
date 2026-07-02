@@ -104,11 +104,12 @@ export const transactionsRepository = {
     );
   },
 
-  async findRecentByGoal(goalId: string, limit = 10) {
+  async findRecentByGoal(goalId: string, limit = 10, options?: { successfulOnly?: boolean }) {
+    const statusFilter = options?.successfulOnly ? "AND status = 'successful'" : '';
     return query(
-      `SELECT id, contributor_name, amount, status, paid_at, reference
+      `SELECT id, amount, status, paid_at, reference
        FROM transactions
-       WHERE goal_id = ?
+       WHERE goal_id = ? ${statusFilter}
        ORDER BY paid_at DESC
        LIMIT ?`,
       [goalId, limit],

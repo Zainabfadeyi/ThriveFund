@@ -194,10 +194,10 @@ export const goalsRepository = {
 
   async findBySlug(slug: string): Promise<GoalRow | null> {
     const rows = await query<GoalRow>(
-      `SELECT title, description, target_amount, current_amount,
+      `SELECT id, slug, title, description, target_amount, current_amount, status,
               ROUND((current_amount / NULLIF(target_amount, 0)) * 100) AS progress_percent,
               deadline, allow_anonymous
-       FROM goals WHERE (slug = ? OR id = ?) AND status = 'active'`,
+       FROM goals WHERE (slug = ? OR id = ?) AND status IN ('active', 'completed')`,
       [slug, slug],
     );
     return rows[0] ?? null;

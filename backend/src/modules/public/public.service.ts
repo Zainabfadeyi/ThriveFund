@@ -7,7 +7,8 @@ export const publicService = {
   async getGoalBySlug(slug: string) {
     const goal = await goalsRepository.findBySlug(slug);
     if (!goal) throw Errors.notFound('Goal');
-    return goal;
+    const recent_payments = await this.getAnonymousRecentPayments(goal.id as string);
+    return { ...goal, recent_payments };
   },
 
   async getVirtualAccountBySlug(slug: string) {
@@ -19,20 +20,16 @@ export const publicService = {
   async getRecentPaymentsBySlug(slug: string) {
     const goal = await goalsRepository.findBySlug(slug);
     if (!goal) throw Errors.notFound('Goal');
-    const rows = await transactionsRepository.findRecentByGoal(goal.id as string, 8);
+    return this.getAnonymousRecentPayments(goal.id as string);
+  },
+
+  async getAnonymousRecentPayments(goalId: string) {
+    const rows = await transactionsRepository.findRecentByGoal(goalId, 8, { successfulOnly: true });
     return rows.map((row) => ({
       id: row.id,
-      contributor_name: maskName(row.contributor_name as string),
       amount: Number(row.amount),
       status: row.status,
       paid_at: row.paid_at,
     }));
   },
 };
-
-function maskName(name: string): string {
-  const parts = name.trim().split(/\s+/).filter(Boolean);
-  if (!parts.length) return 'Anonymous';
-  if (parts.length === 1) return `${parts[0]!.charAt(0).toUpperCase()}***`;
-  return `${parts[0]} ${parts[parts.length - 1]!.charAt(0).toUpperCase()}.`;
-}

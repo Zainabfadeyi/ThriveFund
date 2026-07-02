@@ -1,12 +1,31 @@
 'use client';
 
+import { useEffect, useState } from 'react';
 import { Radio } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { usePublicRecentPayments } from '@/hooks/use-api';
 import { formatNaira } from '@/lib/utils';
+import type { PublicPaymentActivity } from '@/lib/api/types';
 
-export function PaymentRadar({ slug }: { slug: string }) {
-  const { data: payments } = usePublicRecentPayments(slug);
+function formatPaidAt(paidAt?: string): string {
+  if (!paidAt) return 'Just now';
+  const date = new Date(paidAt);
+  if (Number.isNaN(date.getTime())) return 'Just now';
+  return date.toLocaleString('en-NG', {
+    day: 'numeric',
+    month: 'short',
+    hour: '2-digit',
+    minute: '2-digit',
+  });
+}
+
+export function PaymentRadar({ payments }: { payments?: PublicPaymentActivity[] }) {
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  const items = payments ?? [];
 
   return (
     <Card className="mb-6">
@@ -17,19 +36,19 @@ export function PaymentRadar({ slug }: { slug: string }) {
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-3">
-        {!payments?.length ? (
+        {!items.length ? (
           <p className="text-sm text-muted-foreground">Waiting for the first payment…</p>
-        ) : payments.map((payment) => (
+        ) : items.map((payment) => (
           <div key={payment.id} className="flex items-center justify-between rounded-lg border bg-white px-4 py-3 text-sm">
             <div>
-              <p className="font-medium">{payment.contributor_name}</p>
-              <p className="text-xs text-muted-foreground">
-                {payment.paid_at ? new Date(payment.paid_at).toLocaleString() : 'Just now'}
+              <p className="font-medium">New contribution</p>
+              <p className="text-xs text-muted-foreground" suppressHydrationWarning>
+                {mounted ? formatPaidAt(payment.paid_at) : 'Just now'}
               </p>
             </div>
             <div className="text-right">
               <p className="font-semibold text-primary">{formatNaira(Number(payment.amount))}</p>
-              <p className="text-xs capitalize text-muted-foreground">{payment.status.replace('_', ' ')}</p>
+              <p className="text-xs text-muted-foreground">Reconciled</p>
             </div>
           </div>
         ))}

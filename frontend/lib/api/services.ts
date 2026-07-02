@@ -18,6 +18,7 @@ import type {
   Organization,
   PayoutAccount,
   PublicGoal,
+  PublicPaymentActivity,
   ReconciliationOverview,
   ReconciliationRecord,
   ShareLink,
@@ -181,10 +182,7 @@ export const publicApi = {
   getGoal: (slug: string) => apiRequest<PublicGoal>(`/public/goals/${slug}`, { skipAuth: true }),
   getVirtualAccount: (slug: string) => apiRequest<VirtualAccount>(`/public/goals/${slug}/virtual-account`, { skipAuth: true }),
   getRecentPayments: (slug: string) =>
-    apiRequest<Array<{ id: string; contributor_name: string; amount: number; status: string; paid_at?: string }>>(
-      `/public/goals/${slug}/payments`,
-      { skipAuth: true },
-    ),
+    apiRequest<PublicPaymentActivity[]>(`/public/goals/${slug}/payments`, { skipAuth: true }),
 };
 
 export const adminApi = {

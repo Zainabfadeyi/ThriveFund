@@ -63,7 +63,7 @@ export default function PublicCampaignClient() {
         ) : (
           <Card className="mb-6"><CardContent className="p-6 text-sm text-muted-foreground">Virtual account not yet assigned for this campaign.</CardContent></Card>
         )}
-        <PaymentRadar slug={slug} />
+        <PaymentRadar payments={campaign.recent_payments} />
         <div className="flex items-center justify-center gap-2 text-sm text-muted-foreground">
           <CheckCircle2 className="h-4 w-4 text-primary" /> Secured by ThriveFund · Automatic reconciliation
         </div>
