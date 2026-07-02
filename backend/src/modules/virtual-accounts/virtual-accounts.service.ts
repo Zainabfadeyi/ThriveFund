@@ -27,6 +27,7 @@ export const virtualAccountsService = {
       goal_id: goalId,
       provider: result.provider,
       provider_account_id: result.providerAccountId,
+      organization_id: (goal.organization_id as string | null | undefined) ?? null,
       account_number: result.accountNumber,
       account_name: result.accountName,
       bank_name: result.bankName,
