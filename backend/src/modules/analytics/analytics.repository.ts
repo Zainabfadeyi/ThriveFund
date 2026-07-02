@@ -5,8 +5,8 @@ export const analyticsRepository = {
     const rows = await query(
       `SELECT
          COALESCE(SUM(g.current_amount), 0) AS total_saved,
-         SUM(CASE WHEN g.status = 'active' THEN 1 ELSE 0 END) AS active_goals,
-         COUNT(DISTINCT t.contributor_name) AS contributors_count,
+         COALESCE(SUM(CASE WHEN g.status = 'active' THEN 1 ELSE 0 END), 0) AS active_goals,
+         COALESCE(COUNT(DISTINCT t.contributor_name), 0) AS contributors_count,
          COALESCE(SUM(
            CASE WHEN t.status = 'successful'
              AND DATE_FORMAT(t.paid_at, '%Y-%m') = DATE_FORMAT(NOW(), '%Y-%m')

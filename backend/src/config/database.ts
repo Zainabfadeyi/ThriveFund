@@ -12,6 +12,7 @@ export const db = mysql.createPool({
   database: env.DB_NAME,
   waitForConnections: true,
   connectionLimit: 10,
+  queueLimit: 50,
   // SSL only for remote hosts (e.g. AWS RDS)
   ...(isLocal ? {} : { ssl: { rejectUnauthorized: false } }),
 });

@@ -30,6 +30,9 @@ import { healthRouter } from './modules/health/health.routes';
 
 const app = express();
 
+// Trust Cloudflare / Nginx proxy so rate-limiter sees the real client IP
+app.set('trust proxy', 1);
+
 app.use(helmet());
 app.use(cors({
   origin: (origin, callback) => {
@@ -57,9 +60,14 @@ app.use(requestLogger);
 app.use(
   rateLimit({
     windowMs: 15 * 60 * 1000,
-    max: 100,
+    max: 500,
     standardHeaders: true,
     legacyHeaders: false,
+    keyGenerator: (req) =>
+      (req.headers['cf-connecting-ip'] as string) ||
+      (req.headers['x-forwarded-for'] as string)?.split(',')[0].trim() ||
+      req.ip ||
+      'unknown',
   }),
 );
 

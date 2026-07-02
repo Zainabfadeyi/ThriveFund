@@ -152,7 +152,7 @@ export const goalsService = {
     return {
       public_url: buildContributionUrl(slug),
       slug,
-      qr_code_url: `https://api.thrivefund.ng/api/v1/goals/${goalId}/qr.png`,
+      qr_code_url: `https://api.thrivefund.live/api/v1/goals/${goalId}/qr.png`,
     };
   },
 };
