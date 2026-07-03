@@ -37,7 +37,10 @@ import { ApiError } from '@/lib/api/client';
 export default function CampaignDetailClient() {
   const pathname = usePathname();
   // Extract real ID from the URL — useParams() reads the pre-rendered placeholder in static export
-  const id = pathname.split('/').filter(Boolean).pop() ?? '';
+  const segments = pathname.split('/').filter(Boolean);
+  const campaignsIdx = segments.indexOf('campaigns');
+  const rawId = campaignsIdx >= 0 ? (segments[campaignsIdx + 1] ?? '') : '';
+  const id = rawId && rawId !== 'new' && rawId !== 'campaigns' ? rawId : '';
   const { data: campaign, isLoading, error, refetch } = useGoal(id);
   const { data: va, refetch: refetchVa } = useGoalVirtualAccount(id);
   const [txnStatus, setTxnStatus] = useState('all');
