@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { useParams } from 'next/navigation';
+import { usePathname } from 'next/navigation';
 import { Building2, CheckCircle2 } from 'lucide-react';
 import { Logo } from '@/components/shared/logo';
 import { LoadingState, ErrorState } from '@/components/shared/query-states';
@@ -14,7 +14,12 @@ import { PublicCopyButton } from './copy-button';
 import { PaymentRadar } from '@/components/campaign/payment-radar';
 
 export default function PublicCampaignClient() {
-  const { slug } = useParams<{ slug: string }>();
+  const pathname = usePathname();
+  // useParams() returns the static-export placeholder "_" on Cloudflare; read the real slug from the URL.
+  const segments = pathname.split('/').filter(Boolean);
+  const cIdx = segments.indexOf('c');
+  const rawSlug = cIdx >= 0 ? (segments[cIdx + 1] ?? '') : '';
+  const slug = rawSlug && rawSlug !== '_' && rawSlug !== 'success' ? rawSlug : '';
   const { data: campaign, isLoading, error, refetch } = usePublicGoal(slug);
   const { data: va } = usePublicVirtualAccount(slug);
 
