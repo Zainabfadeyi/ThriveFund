@@ -45,12 +45,29 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   useEffect(() => {
+    let cancelled = false;
     const token = typeof window !== 'undefined' ? localStorage.getItem('thrivefund_access_token') : null;
+
+    const finish = () => {
+      if (!cancelled) setLoading(false);
+    };
+
+    const safetyTimer = window.setTimeout(finish, 12_000);
+
     if (token) {
-      refreshUser().finally(() => setLoading(false));
+      refreshUser().finally(() => {
+        window.clearTimeout(safetyTimer);
+        finish();
+      });
     } else {
-      setLoading(false);
+      window.clearTimeout(safetyTimer);
+      finish();
     }
+
+    return () => {
+      cancelled = true;
+      window.clearTimeout(safetyTimer);
+    };
   }, [refreshUser]);
 
   const login = useCallback(async (email: string, password: string) => {

@@ -1,2 +1,8 @@
-/c/* /c/_/ 200
-/dashboard/campaigns/* /dashboard/campaigns/_/ 200
+# Static export placeholders — use :param (single segment), not * (matches empty).
+# Order matters: explicit paths first.
+
+/c/success /c/success 200
+/c/:slug /c/_/ 200
+
+/dashboard/campaigns/new /dashboard/campaigns/new 200
+/dashboard/campaigns/:id /dashboard/campaigns/_/ 200
