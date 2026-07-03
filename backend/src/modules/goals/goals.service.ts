@@ -16,6 +16,16 @@ import { organizationsRepository } from '../organizations/organizations.reposito
 import { virtualAccountsRepository } from '../virtual-accounts/virtual-accounts.repository';
 import type { CreateGoalInput, UpdateGoalInput, CloseOutGoalInput } from './goals.schema';
 import { enrichGoalWithPayoutFee } from '../../lib/payout-fees';
+import { slugifyTitle, slugWithSuffix } from '../../lib/slugify';
+
+async function allocateGoalSlug(title: string, goalId: string): Promise<string> {
+  const base = slugifyTitle(title);
+  const candidates = [base, slugWithSuffix(base, goalId.slice(-8))];
+  for (const candidate of candidates) {
+    if (!(await goalsRepository.slugExists(candidate))) return candidate;
+  }
+  return slugWithSuffix(base, goalId.replace(/[^a-z0-9]/gi, '').slice(-10));
+}
 
 export const goalsService = {
   async create(userId: string, body: CreateGoalInput) {
@@ -25,7 +35,8 @@ export const goalsService = {
     }
 
     const id = `goal_${uuid().replace(/-/g, '').slice(0, 12)}`;
-    const goal = await goalsRepository.insert({ id, user_id: userId, ...body });
+    const slug = await allocateGoalSlug(body.title, id);
+    const goal = await goalsRepository.insert({ id, user_id: userId, slug, ...body });
     return enrichGoalWithPayoutFee(goal);
   },
 
@@ -156,7 +167,13 @@ export const goalsService = {
   async getShareLink(userId: string, goalId: string) {
     const goal = await goalsRepository.findByIdRaw(goalId, userId);
     if (!goal) throw Errors.notFound('Goal');
-    const slug = (goal.slug as string | null) ?? goalId;
+
+    let slug = goal.slug as string | null;
+    if (!slug) {
+      slug = await allocateGoalSlug(String(goal.title ?? 'campaign'), goalId);
+      await goalsRepository.updateSlug(goalId, slug);
+    }
+
     return {
       public_url: buildContributionUrl(slug),
       slug,

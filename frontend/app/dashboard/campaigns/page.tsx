@@ -66,7 +66,11 @@ export default function CampaignsPage() {
                     </div>
                   </div>
                   <div className="flex gap-2">
-                    {c.slug && <Button variant="outline" size="sm" asChild><Link href={`/c/${c.slug}`}>Public Page</Link></Button>}
+                    {(c.slug ?? c.id) && (
+                      <Button variant="outline" size="sm" asChild>
+                        <Link href={`/c/${c.slug ?? c.id}/`}>Public Page</Link>
+                      </Button>
+                    )}
                     <Button size="sm" asChild><Link href={`/dashboard/campaigns/${c.id}`}>Details</Link></Button>
                   </div>
                 </CardContent>

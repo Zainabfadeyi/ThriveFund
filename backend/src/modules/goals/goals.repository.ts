@@ -18,12 +18,13 @@ export const goalsRepository = {
     category: string;
     deadline: string;
     color?: string | null;
+    slug?: string | null;
   }): Promise<GoalRow> {
     await execute(
-      `INSERT INTO goals (id, user_id, organization_id, title, description, target_amount, category, deadline, color, status, current_amount, created_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'active', 0, NOW())`,
+      `INSERT INTO goals (id, user_id, organization_id, title, description, target_amount, category, deadline, color, slug, status, current_amount, created_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'active', 0, NOW())`,
       [data.id, data.user_id, data.organization_id ?? null, data.title, data.description ?? null,
-       data.target_amount, data.category, data.deadline, data.color ?? null],
+       data.target_amount, data.category, data.deadline, data.color ?? null, data.slug ?? null],
     );
     const rows = await query<GoalRow>(
       `SELECT *,
@@ -54,7 +55,7 @@ export const goalsRepository = {
     );
 
     const rows = await query<GoalRow>(
-      `SELECT goals.id, goals.organization_id, goals.title, goals.category, goals.target_amount,
+      `SELECT goals.id, goals.organization_id, goals.title, goals.slug, goals.category, goals.target_amount,
               goals.current_amount, goals.status, goals.color, organizations.name AS organization_name,
               GREATEST(0, DATEDIFF(deadline, NOW())) AS days_left,
               ROUND((current_amount / NULLIF(target_amount, 0)) * 100) AS progress_percent,
@@ -97,6 +98,15 @@ export const goalsRepository = {
       [goalId, userId],
     );
     return rows[0] ?? null;
+  },
+
+  async slugExists(slug: string): Promise<boolean> {
+    const rows = await query<{ id: string }>('SELECT id FROM goals WHERE slug = ? LIMIT 1', [slug]);
+    return rows.length > 0;
+  },
+
+  async updateSlug(goalId: string, slug: string) {
+    await execute('UPDATE goals SET slug = ?, updated_at = NOW() WHERE id = ?', [slug, goalId]);
   },
 
   async update(goalId: string, userId: string, fields: Record<string, unknown>): Promise<GoalRow | null> {

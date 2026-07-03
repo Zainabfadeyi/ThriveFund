@@ -1,7 +1,6 @@
 'use client';
 
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
 import { Building2, CheckCircle2 } from 'lucide-react';
 import { Logo } from '@/components/shared/logo';
 import { LoadingState, ErrorState } from '@/components/shared/query-states';
@@ -9,22 +8,39 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
 import { usePublicGoal, usePublicVirtualAccount } from '@/hooks/use-api';
+import { usePublicCampaignSlug } from '@/hooks/use-public-campaign-slug';
 import { formatNaira } from '@/lib/utils';
 import { PublicCopyButton } from './copy-button';
 import { PaymentRadar } from '@/components/campaign/payment-radar';
 
 export default function PublicCampaignClient() {
-  const pathname = usePathname();
-  // useParams() returns the static-export placeholder "_" on Cloudflare; read the real slug from the URL.
-  const segments = pathname.split('/').filter(Boolean);
-  const cIdx = segments.indexOf('c');
-  const rawSlug = cIdx >= 0 ? (segments[cIdx + 1] ?? '') : '';
-  const slug = rawSlug && rawSlug !== '_' && rawSlug !== 'success' ? rawSlug : '';
+  const slug = usePublicCampaignSlug();
   const { data: campaign, isLoading, error, refetch } = usePublicGoal(slug);
   const { data: va } = usePublicVirtualAccount(slug);
 
-  if (isLoading) return <div className="flex min-h-screen items-center justify-center"><LoadingState /></div>;
-  if (error || !campaign) return <div className="flex min-h-screen items-center justify-center p-6"><ErrorState message="Campaign not found" onRetry={() => refetch()} /></div>;
+  if (!slug) {
+    return (
+      <div className="flex min-h-screen items-center justify-center">
+        <LoadingState message="Loading campaign..." />
+      </div>
+    );
+  }
+
+  if (isLoading) {
+    return (
+      <div className="flex min-h-screen items-center justify-center">
+        <LoadingState message="Loading campaign..." />
+      </div>
+    );
+  }
+
+  if (error || !campaign) {
+    return (
+      <div className="flex min-h-screen items-center justify-center p-6">
+        <ErrorState message="Campaign not found" onRetry={() => refetch()} />
+      </div>
+    );
+  }
 
   const progress = Number(campaign.progress_percent ?? 0);
 

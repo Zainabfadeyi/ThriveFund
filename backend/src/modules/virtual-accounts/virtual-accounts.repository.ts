@@ -99,7 +99,7 @@ export const virtualAccountsRepository = {
       `SELECT va.account_number, va.account_name, va.bank_name
        FROM virtual_accounts va
        JOIN goals g ON g.id = va.goal_id
-       WHERE (g.slug = ? OR g.id = ?) AND g.status = 'active' AND va.status = 'active'`,
+       WHERE (g.slug = ? OR g.id = ?) AND g.status IN ('active', 'completed') AND va.status = 'active'`,
       [slug, slug],
     );
     return rows[0] ?? null;

@@ -33,14 +33,16 @@ import {
 import { formatNaira, getInitials, downloadFile } from '@/lib/utils';
 import { getAuthErrorMessage } from '@/contexts/auth-context';
 import { ApiError } from '@/lib/api/client';
+import { useDashboardCampaignId } from '@/hooks/use-dashboard-campaign-id';
 
 export default function CampaignDetailClient() {
+  const pathnameId = useDashboardCampaignId();
   const pathname = usePathname();
-  // Extract real ID from the URL — useParams() reads the pre-rendered placeholder in static export
   const segments = pathname.split('/').filter(Boolean);
   const campaignsIdx = segments.indexOf('campaigns');
   const rawId = campaignsIdx >= 0 ? (segments[campaignsIdx + 1] ?? '') : '';
-  const id = rawId && rawId !== 'new' && rawId !== 'campaigns' ? rawId : '';
+  const fallbackId = rawId && rawId !== '_' && rawId !== 'new' && rawId !== 'campaigns' ? rawId : '';
+  const id = pathnameId || fallbackId;
   const { data: campaign, isLoading, error, refetch } = useGoal(id);
   const { data: va, refetch: refetchVa } = useGoalVirtualAccount(id);
   const [txnStatus, setTxnStatus] = useState('all');
@@ -85,7 +87,8 @@ export default function CampaignDetailClient() {
   if (!campaign) return null;
 
   const progress = Number(campaign.progress_percent ?? 0);
-  const publicUrl = share?.public_url ?? (campaign.slug ? window.location.origin + '/c/' + campaign.slug : '');
+  const publicSlug = campaign.slug ?? campaign.id;
+  const publicUrl = share?.public_url ?? (publicSlug ? window.location.origin + '/c/' + publicSlug + '/' : '');
   const isCompleted = campaign.status === 'completed';
   const reservedWithdrawals = (withdrawals ?? [])
     .filter((w) => ['pending', 'processing', 'successful'].includes(w.status))
@@ -164,7 +167,7 @@ export default function CampaignDetailClient() {
             <Button variant="outline" onClick={() => handleExport('pdf')} disabled={exportCampaign.isPending}>
               <Download className="h-4 w-4" /> PDF
             </Button>
-            {campaign.slug && <Button variant="outline" asChild><Link href={'/c/' + campaign.slug}><Share2 className="h-4 w-4" /> Public</Link></Button>}
+            {publicSlug && <Button variant="outline" asChild><Link href={'/c/' + publicSlug + '/'}><Share2 className="h-4 w-4" /> Public</Link></Button>}
           </div>
         }
       />
