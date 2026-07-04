@@ -8,6 +8,7 @@
     "build": "tsc",
     "start": "node dist/server.js",
     "migrate": "node scripts/run-migrations.js",
+    "migrate:status": "node scripts/run-migrations.js --status",
     "seed": "node scripts/seed.js",
     "type-check": "tsc --noEmit",
     "test": "node --test --require ts-node/register/transpile-only tests/*.test.ts"

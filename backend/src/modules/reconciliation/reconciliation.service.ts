@@ -114,13 +114,21 @@ export const reconciliationService = {
 
       if (txnStatus === TransactionStatus.Successful && shouldAutoCreateContributor(payment.payer_name)) {
         const contributorName = normalizedPayerName(payment.payer_name);
-        await contributorsRepository.ensureAutoDetected({
-          id: `ctr_${uuid().replace(/-/g, '').slice(0, 12)}`,
-          goal_id: goalId,
-          organization_id: orgId,
-          name: contributorName,
-          unique_reference: uuid().slice(0, 8).toUpperCase(),
-        });
+        try {
+          await contributorsRepository.ensureAutoDetected({
+            id: `ctr_${uuid().replace(/-/g, '').slice(0, 12)}`,
+            goal_id: goalId,
+            name: contributorName,
+            unique_reference: uuid().slice(0, 8).toUpperCase(),
+          });
+        } catch (err) {
+          console.error(JSON.stringify({
+            event: 'auto_contributor_failed',
+            goal_id: goalId,
+            payer_name: contributorName,
+            error: err instanceof Error ? err.message : 'unknown',
+          }));
+        }
       }
 
       const txnId = `txn_${uuid().replace(/-/g, '').slice(0, 12)}`;

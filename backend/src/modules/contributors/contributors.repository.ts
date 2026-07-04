@@ -86,23 +86,19 @@ export const contributorsRepository = {
   async ensureAutoDetected(data: {
     id: string;
     goal_id: string;
-    organization_id?: string | null;
     name: string;
     unique_reference: string;
   }) {
     await execute(
       `INSERT INTO contributors
-         (id, goal_id, organization_id, name, email, phone_number, group_label, expected_amount, unique_reference, created_at)
-       SELECT ?, ?, ?, ?, NULL, NULL, 'Auto-detected', NULL, ?, NOW()
+         (id, goal_id, name, email, phone_number, group_label, expected_amount, unique_reference, created_at)
+       SELECT ?, ?, ?, NULL, NULL, 'Auto-detected', NULL, ?, NOW()
        FROM DUAL
        WHERE NOT EXISTS (
          SELECT 1 FROM contributors
          WHERE goal_id = ? AND LOWER(TRIM(name)) = LOWER(TRIM(?))
        )`,
-      [
-        data.id, data.goal_id, data.organization_id ?? null, data.name, data.unique_reference,
-        data.goal_id, data.name,
-      ],
+      [data.id, data.goal_id, data.name, data.unique_reference, data.goal_id, data.name],
     );
   },
 

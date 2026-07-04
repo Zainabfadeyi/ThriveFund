@@ -15,6 +15,7 @@ for (const key of required) {
 
 const migrationsDir = path.resolve(__dirname, '..', 'database', 'migrations');
 const isLocal = process.env.DB_HOST === 'localhost' || process.env.DB_HOST === '127.0.0.1';
+const listOnly = process.argv.includes('--list') || process.argv.includes('--status');
 
 async function main() {
   const connection = await mysql.createConnection({
@@ -23,11 +24,13 @@ async function main() {
     user: process.env.DB_USER,
     password: process.env.DB_PASS || '',
     database: process.env.DB_NAME,
-    multipleStatements: true,
+    multipleStatements: !listOnly,
     ...(isLocal ? {} : { ssl: { rejectUnauthorized: false } }),
   });
 
   try {
+    console.log(`Database: ${process.env.DB_USER}@${process.env.DB_HOST}:${process.env.DB_PORT || 3306}/${process.env.DB_NAME}`);
+
     await connection.query(`
       CREATE TABLE IF NOT EXISTS schema_migrations (
         filename VARCHAR(255) NOT NULL,
@@ -36,12 +39,23 @@ async function main() {
       )
     `);
 
-    const [rows] = await connection.query('SELECT filename FROM schema_migrations');
+    const [rows] = await connection.query('SELECT filename FROM schema_migrations ORDER BY filename');
     const applied = new Set(rows.map((row) => row.filename));
     const files = fs
       .readdirSync(migrationsDir)
       .filter((file) => file.endsWith('.sql'))
       .sort();
+
+    const pending = files.filter((file) => !applied.has(file));
+
+    if (listOnly) {
+      console.log(`\nApplied (${applied.size}):`);
+      for (const file of files.filter((f) => applied.has(f))) console.log(`  ✓ ${file}`);
+      console.log(`\nPending (${pending.length}):`);
+      for (const file of pending) console.log(`  • ${file}`);
+      if (!pending.length) console.log('  (none — database is up to date)');
+      return;
+    }
 
     for (const file of files) {
       if (applied.has(file)) {

