@@ -4,6 +4,7 @@ import { db } from './config/database';
 import http from 'http';
 import { attachRealtime } from './lib/realtime';
 import { scheduleNombaSync } from './jobs/nomba-reconciliation.job';
+import { scheduleCollectionExpiry } from './jobs/collection-expiry.job';
 
 async function bootstrap() {
   try {
@@ -20,6 +21,7 @@ async function bootstrap() {
   server.listen(env.PORT, () => {
     console.log(`ThriveFund API running on port ${env.PORT} [${env.NODE_ENV}]`);
     scheduleNombaSync();
+    scheduleCollectionExpiry();
   });
 }
 

@@ -132,6 +132,7 @@ CREATE TABLE IF NOT EXISTS goals (
   allow_anonymous TINYINT(1)     NOT NULL DEFAULT 1,
   completed_at    DATETIME       NULL,
   closed_at       DATETIME       NULL,
+  collection_expires_at DATETIME NULL,
   created_at      DATETIME       NOT NULL DEFAULT CURRENT_TIMESTAMP,
   updated_at      DATETIME       NULL     ON UPDATE CURRENT_TIMESTAMP,
   PRIMARY KEY (id),

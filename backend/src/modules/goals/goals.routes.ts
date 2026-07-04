@@ -20,6 +20,7 @@ goalsRouter.get('/:id', goalsController.getById);
 goalsRouter.patch('/:id', goalsController.update);
 goalsRouter.delete('/:id', goalsController.delete);
 goalsRouter.post('/:id/close', goalsController.close);
+goalsRouter.post('/:id/expire-collection', goalsController.expireCollection);
 goalsRouter.post('/:id/close-out', goalsController.closeOut);
 goalsRouter.get('/:id/share', goalsController.getShareLink);
 goalsRouter.get('/:id/export', goalsController.exportCampaign);

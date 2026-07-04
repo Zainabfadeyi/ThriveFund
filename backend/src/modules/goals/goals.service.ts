@@ -20,6 +20,7 @@ import { withdrawalsService } from '../withdrawals/withdrawals.service';
 import type { CreateGoalInput, UpdateGoalInput, CloseOutGoalInput } from './goals.schema';
 import { enrichGoalWithPayoutFee } from '../../lib/payout-fees';
 import { slugifyTitle, slugWithSuffix } from '../../lib/slugify';
+import { collectionLifecycleService } from './collection-lifecycle.service';
 
 async function allocateGoalSlug(title: string, goalId: string): Promise<string> {
   const base = slugifyTitle(title);
@@ -72,7 +73,7 @@ export const goalsService = {
     const goal = await this.getById(userId, goalId);
     const [virtualAccount, transactions, contributors, share, payoutAccounts, withdrawals, withdrawalAvailability] =
       await Promise.all([
-        virtualAccountsRepository.findByGoalAndUser(goalId, userId),
+        virtualAccountsRepository.findLatestByGoalAndUser(goalId, userId),
         transactionsRepository.findAll(userId, { goal_id: goalId, page: 1, perPage: 25 }),
         contributorsRepository.findByGoal(goalId),
         this.getShareLink(userId, goalId),
@@ -93,7 +94,10 @@ export const goalsService = {
       ]);
 
     return {
-      goal,
+      goal: {
+        ...goal,
+        collection_grace_days: collectionLifecycleService.getCollectionGraceDays(),
+      },
       virtual_account: virtualAccount ?? null,
       transactions: transactions.rows,
       transactions_meta: { page: 1, per_page: 25, total: transactions.total },
@@ -128,9 +132,17 @@ export const goalsService = {
   },
 
   async close(userId: string, goalId: string) {
-    const goal = await goalsRepository.updateStatus(goalId, userId, 'completed');
-    if (!goal) throw Errors.notFound('Goal');
-    return enrichGoalWithPayoutFee(goal);
+    const result = await collectionLifecycleService.closeCollectionEarly(userId, goalId);
+    return enrichGoalWithPayoutFee(result.goal);
+  },
+
+  async expireCollection(userId: string, goalId: string) {
+    const result = await collectionLifecycleService.expireCollectionNow(userId, goalId);
+    return {
+      goal: enrichGoalWithPayoutFee(result.goal),
+      virtual_account: result.virtual_account,
+      expiry: result.expiry,
+    };
   },
 
   async closeOut(userId: string, goalId: string, body: CloseOutGoalInput) {

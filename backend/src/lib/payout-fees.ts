@@ -12,9 +12,12 @@ export function netPayoutFromCollectionTarget(collectionTargetNgn: number): numb
   return Math.max(0, collectionTargetNgn - getPayoutTransferFeeNgn());
 }
 
-export function estimatedNetAvailable(collectedNgn: number, collectionTargetNgn?: number): number {
-  const cap = collectionTargetNgn != null ? Math.min(collectedNgn, collectionTargetNgn) : collectedNgn;
-  return Math.max(0, cap - getPayoutTransferFeeNgn());
+export function excessCollectedNgn(collectedNgn: number, targetNgn: number): number {
+  return Math.max(0, collectedNgn - targetNgn);
+}
+
+export function estimatedNetAvailable(collectedNgn: number, _collectionTargetNgn?: number): number {
+  return Math.max(0, collectedNgn - getPayoutTransferFeeNgn());
 }
 
 export function requiredWalletBalanceForPayout(payoutAmountNgn: number): number {
@@ -72,11 +75,13 @@ export function enrichGoalWithPayoutFee<T extends Record<string, unknown>>(goal:
   const target = Number(goal.target_amount ?? 0);
   const current = Number(goal.current_amount ?? 0);
   const fee = getPayoutTransferFeeNgn();
+  const excess = excessCollectedNgn(current, target);
   return {
     ...goal,
     payout_fee_ngn: fee,
     net_payout_target: netPayoutFromCollectionTarget(target),
-    estimated_net_available: estimatedNetAvailable(current, target),
+    estimated_net_available: estimatedNetAvailable(current),
+    excess_amount: excess,
   };
 }
 

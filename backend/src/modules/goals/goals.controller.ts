@@ -61,6 +61,13 @@ export const goalsController = {
     } catch (err) { next(err); }
   },
 
+  async expireCollection(req: Request, res: Response, next: NextFunction) {
+    try {
+      const data = await goalsService.expireCollection(req.user!.sub, req.params.id);
+      ok(res, data);
+    } catch (err) { next(err); }
+  },
+
   async closeOut(req: Request, res: Response, next: NextFunction) {
     try {
       const body = closeOutGoalSchema.parse(req.body);

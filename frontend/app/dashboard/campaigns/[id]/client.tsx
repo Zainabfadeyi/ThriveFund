@@ -4,7 +4,7 @@ import Link from 'next/link';
 import { useEffect, useState } from 'react';
 
 import { usePathname } from 'next/navigation';
-import { Copy, QrCode, Share2, ArrowLeft, Plus, Download, CheckCircle2 } from 'lucide-react';
+import { Copy, QrCode, Share2, ArrowLeft, Plus, Download, CheckCircle2, Lock, Timer } from 'lucide-react';
 import { QRCodeSVG } from 'qrcode.react';
 import { toast } from 'sonner';
 import { PageHeader } from '@/components/shared/page-header';
@@ -23,6 +23,8 @@ import {
   useCreateVirtualAccount,
   useExportCampaign,
   useCreateWithdrawal,
+  useCloseGoal,
+  useExpireCollection,
 } from '@/hooks/use-api';
 import { formatNaira, getInitials, downloadFile } from '@/lib/utils';
 import { getAuthErrorMessage } from '@/contexts/auth-context';
@@ -59,6 +61,8 @@ export default function CampaignDetailClient() {
   const createVa = useCreateVirtualAccount();
   const exportCampaign = useExportCampaign();
   const createWithdrawal = useCreateWithdrawal(id);
+  const closeGoal = useCloseGoal();
+  const expireCollection = useExpireCollection();
   const [withdrawalAmount, setWithdrawalAmount] = useState('');
   const [selectedPayoutId, setSelectedPayoutId] = useState('');
 
@@ -98,6 +102,11 @@ export default function CampaignDetailClient() {
   const publicSlug = campaign.slug ?? campaign.id;
   const publicUrl = share?.public_url ?? (publicSlug ? window.location.origin + '/c/' + publicSlug + '/' : '');
   const isCompleted = campaign.status === 'completed';
+  const vaActive = va?.status === 'active';
+  const graceDays = campaign.collection_grace_days ?? 7;
+  const collectionExpiresAt = campaign.collection_expires_at ? new Date(campaign.collection_expires_at) : null;
+  const gracePending = isCompleted && vaActive && collectionExpiresAt && collectionExpiresAt > new Date();
+  const closedEarly = isCompleted && Boolean(campaign.closed_at) && Number(campaign.current_amount) < Number(campaign.target_amount);
   const reservedWithdrawals = (withdrawals ?? [])
     .filter((w) => ['pending', 'processing', 'successful'].includes(w.status))
     .reduce((sum, w) => sum + Number(w.amount), 0);
@@ -108,7 +117,9 @@ export default function CampaignDetailClient() {
   const nombaBalanceAvailable = withdrawalAvailability?.nomba_balance_available ?? false;
   const settlementLag = withdrawalAvailability?.settlement_lag ?? false;
   const netPayoutTarget = campaign.net_payout_target ?? Math.max(0, Number(campaign.target_amount) - feeReserve);
-  const estimatedNetAvailable = campaign.estimated_net_available ?? Math.max(0, Math.min(Number(campaign.current_amount), Number(campaign.target_amount)) - feeReserve);
+  const excessAmount = campaign.excess_amount ?? Math.max(0, Number(campaign.current_amount) - Number(campaign.target_amount));
+  const estimatedNetAvailable = campaign.estimated_net_available ?? Math.max(0, Number(campaign.current_amount) - feeReserve);
+  const progressDisplay = Math.min(100, progress);
   const defaultPayout = payoutAccounts?.find((account) => Boolean(account.is_default)) ?? payoutAccounts?.[0];
   const payoutId = selectedPayoutId || defaultPayout?.id || '';
   const payoutProcessing = (withdrawals ?? []).some((w) => ['pending', 'processing'].includes(w.status));
@@ -162,6 +173,32 @@ export default function CampaignDetailClient() {
     }
   };
 
+  const handleCloseEarly = async () => {
+    if (!window.confirm('Close this collection now? The payment account will stop accepting new transfers. You can still withdraw what has been collected.')) {
+      return;
+    }
+    try {
+      await closeGoal.mutateAsync(id);
+      toast.success('Collection closed — payment account expired');
+      refetch();
+    } catch (err) {
+      toast.error(getAuthErrorMessage(err));
+    }
+  };
+
+  const handleExpireNow = async () => {
+    if (!window.confirm('Expire the payment account now? Contributors should no longer transfer to this account number.')) {
+      return;
+    }
+    try {
+      await expireCollection.mutateAsync(id);
+      toast.success('Payment account expired');
+      refetch();
+    } catch (err) {
+      toast.error(getAuthErrorMessage(err));
+    }
+  };
+
   const nextAction = !va
     ? {
       title: 'Set up collection account',
@@ -210,7 +247,7 @@ export default function CampaignDetailClient() {
         title={campaign.title}
         description={campaign.category + ' · ' + campaign.status}
         action={
-          <div className="flex gap-2">
+          <div className="flex flex-wrap gap-2">
             <Button variant="outline" onClick={() => handleExport('csv')} disabled={exportCampaign.isPending}>
               <Download className="h-4 w-4" /> CSV
             </Button>
@@ -218,17 +255,45 @@ export default function CampaignDetailClient() {
               <Download className="h-4 w-4" /> PDF
             </Button>
             {publicSlug && <Button variant="outline" asChild><Link href={'/c/' + publicSlug + '/'}><Share2 className="h-4 w-4" /> Public</Link></Button>}
+            {!isCompleted && va && (
+              <Button variant="destructive" onClick={handleCloseEarly} disabled={closeGoal.isPending}>
+                <Lock className="h-4 w-4" /> Close Collection Early
+              </Button>
+            )}
+            {gracePending && (
+              <Button variant="outline" onClick={handleExpireNow} disabled={expireCollection.isPending}>
+                <Timer className="h-4 w-4" /> Expire Account Now
+              </Button>
+            )}
           </div>
         }
       />
+
+      {excessAmount > 0 && (
+        <div className="mb-6 rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
+          <p className="font-semibold">Over-collection recorded</p>
+          <p className="mt-1">
+            Target was {formatNaira(Number(campaign.target_amount))} · Collected {formatNaira(Number(campaign.current_amount))} · Excess {formatNaira(excessAmount)}.
+            The full collected amount can be withdrawn after completion (minus transfer fee).
+          </p>
+        </div>
+      )}
 
       {isCompleted && (
         <div className="mb-6 rounded-lg border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-900">
           <div className="flex items-start gap-3">
             <CheckCircle2 className="mt-0.5 h-5 w-5 shrink-0" />
             <div>
-              <p className="font-semibold">Target reached. This campaign is inactive for collections.</p>
-              <p className="mt-1 text-emerald-800">The virtual account is expired or pending expiry, and contributors should no longer transfer to it. Manual close-out/payout stays under organization control.</p>
+              <p className="font-semibold">
+                {closedEarly
+                  ? 'Collection closed early — no longer accepting payments.'
+                  : 'Target reached. This campaign is inactive for collections.'}
+              </p>
+              <p className="mt-1 text-emerald-800">
+                {gracePending && collectionExpiresAt
+                  ? `The payment account stays open until ${collectionExpiresAt.toLocaleString('en-NG', { dateStyle: 'medium', timeStyle: 'short' })} (${graceDays}-day grace) to catch late transfers. Use "Expire Account Now" to close it sooner.`
+                  : 'The virtual account is expired or pending expiry, and contributors should no longer transfer to it. Withdraw collected funds when ready.'}
+              </p>
             </div>
           </div>
         </div>
@@ -258,14 +323,16 @@ export default function CampaignDetailClient() {
           <CardContent className="p-5">
             <p className="text-sm text-muted-foreground">Est. net available</p>
             <p className="text-2xl font-bold">{formatNaira(estimatedNetAvailable)}</p>
-            <p className="mt-1 text-xs text-muted-foreground">After {formatNaira(feeReserve)} transfer fee</p>
+            <p className="mt-1 text-xs text-muted-foreground">
+              {excessAmount > 0 ? 'Includes excess · ' : ''}After {formatNaira(feeReserve)} transfer fee
+            </p>
           </CardContent>
         </Card>
         <Card><CardContent className="p-5"><p className="text-sm text-muted-foreground">Contributors</p><p className="text-2xl font-bold">{campaign.contributors_count ?? 0}</p></CardContent></Card>
         <Card><CardContent className="p-5"><p className="text-sm text-muted-foreground">Progress</p><p className="text-2xl font-bold text-primary">{progress}%</p></CardContent></Card>
       </div>
 
-      <div className="mb-8"><Progress value={progress} className="h-3" /></div>
+      <div className="mb-8"><Progress value={progressDisplay} className="h-3" /></div>
 
       <div className="mb-8 grid gap-6 lg:grid-cols-2">
         <Card>
@@ -273,20 +340,32 @@ export default function CampaignDetailClient() {
           <CardContent className="space-y-4">
             {va ? (
               <>
-                <div className={`rounded-xl border border-dashed p-5 ${isCompleted || va.status === 'inactive' ? 'border-emerald-300 bg-emerald-50' : 'border-primary/30 bg-primary/5'}`}>
+                <div className={`rounded-xl border border-dashed p-5 ${isCompleted && !vaActive ? 'border-emerald-300 bg-emerald-50' : gracePending ? 'border-amber-300 bg-amber-50' : isCompleted || va.status === 'inactive' ? 'border-emerald-300 bg-emerald-50' : 'border-primary/30 bg-primary/5'}`}>
                   <p className="text-xs uppercase text-muted-foreground">Account Number</p>
                   <p className="text-2xl font-bold tracking-wider">{va.account_number}</p>
                   <p className="mt-2 text-sm">{va.bank_name} · {va.account_name}</p>
-                  {(isCompleted || va.status === 'inactive') && <p className="mt-3 text-sm font-medium text-emerald-800">Expired for new collections</p>}
+                  {gracePending && collectionExpiresAt && (
+                    <p className="mt-3 text-sm font-medium text-amber-800">
+                      Accepting payments until {collectionExpiresAt.toLocaleDateString('en-NG')}
+                    </p>
+                  )}
+                  {(isCompleted && !vaActive) || va.status === 'inactive' ? (
+                    <p className="mt-3 text-sm font-medium text-emerald-800">Expired for new collections</p>
+                  ) : null}
                 </div>
                 {!isCompleted && va.status !== 'inactive' && (
                   <Button variant="outline" onClick={() => { navigator.clipboard.writeText(va.account_number); toast.success('Copied'); }}>
                     <Copy className="h-4 w-4" /> Copy Number
                   </Button>
                 )}
-                {isCompleted && (
-                  <Button variant="outline" disabled>
-                    Manual Close-Out Ready
+                {!isCompleted && va.status !== 'inactive' && (
+                  <Button variant="outline" className="text-destructive" onClick={handleCloseEarly} disabled={closeGoal.isPending}>
+                    <Lock className="h-4 w-4" /> Close Collection Early
+                  </Button>
+                )}
+                {gracePending && (
+                  <Button variant="outline" onClick={handleExpireNow} disabled={expireCollection.isPending}>
+                    <Timer className="h-4 w-4" /> Expire Account Now
                   </Button>
                 )}
               </>

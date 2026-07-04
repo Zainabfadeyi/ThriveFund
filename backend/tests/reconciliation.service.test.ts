@@ -193,7 +193,10 @@ test('reconciliationService completes campaign and expires account once target i
     target_amount: 10000,
     status: 'active',
   });
-  goalsRepository.markCompleted = async (goalId: string) => ({ id: goalId, status: 'completed', current_amount: 10000 });
+  goalsRepository.markCompleted = async (goalId: string, _graceDays?: number | null) => ({
+    id: goalId, status: 'completed', current_amount: 10000,
+  });
+  goalsRepository.clearCollectionExpiry = async () => undefined;
   virtualAccountsRepository.markInactive = async (id: string) => {
     inactive.push(id);
     return { id, status: 'inactive' };
@@ -247,4 +250,76 @@ test('reconciliationService completion is idempotent for already completed campa
 
   assert.equal(result, null);
   assert.equal(markedInactive, false);
+});
+
+test('reconciliationService credits full over-payment amount and flags excess', async () => {
+  const { reconciliationService } = await import('../src/modules/reconciliation/reconciliation.service');
+  const { virtualAccountsRepository } = await import('../src/modules/virtual-accounts/virtual-accounts.repository');
+  const { reconciliationRepository } = await import('../src/modules/reconciliation/reconciliation.repository');
+  const { transactionsRepository } = await import('../src/modules/transactions/transactions.repository');
+  const { goalsRepository } = await import('../src/modules/goals/goals.repository');
+  const { contributorsRepository } = await import('../src/modules/contributors/contributors.repository');
+  const { notificationsRepository } = await import('../src/modules/notifications/notifications.repository');
+  const { webhooksRepository } = await import('../src/modules/webhooks/webhooks.repository');
+  const audit = await import('../src/lib/audit');
+  const email = await import('../src/lib/email');
+
+  const increments: Array<{ goalId: string; amount: number }> = [];
+  let insertedRec: Record<string, unknown> | null = null;
+
+  virtualAccountsRepository.findByAccountNumber = async () => ({
+    id: 'va_123',
+    goal_id: 'goal_123',
+    organization_id: 'org_123',
+    provider_reference: 'nomba_va_123',
+  });
+  transactionsRepository.insert = async (data: Record<string, unknown>) => ({ id: data.id, ...data });
+  contributorsRepository.findByGoalAndNormalizedName = async () => null;
+  contributorsRepository.insertAutoDetected = async (data: Record<string, unknown>) => ({ id: data.id, ...data });
+  goalsRepository.incrementAmount = async (goalId: string, amount: number) => {
+    increments.push({ goalId, amount });
+    return { id: goalId };
+  };
+  goalsRepository.findCompletionState = async () => ({
+    id: 'goal_123',
+    user_id: 'usr_123',
+    organization_id: 'org_123',
+    title: 'School fees',
+    current_amount: 0,
+    target_amount: 250,
+    status: 'active',
+    slug: 'school-fees',
+  });
+  goalsRepository.findOwnerByGoalId = async () => ({
+    user_id: 'usr_123',
+    email: 'owner@test.com',
+    title: 'School fees',
+  });
+  reconciliationRepository.insert = async (data: Record<string, unknown>) => {
+    insertedRec = { id: data.id, ...data };
+    return insertedRec;
+  };
+  webhooksRepository.markStatus = async () => ({ id: 'wh_123' });
+  notificationsRepository.insert = async (data: Record<string, unknown>) => ({ id: data.id, ...data });
+  audit.logAudit = async () => undefined;
+  email.sendPaymentReceivedEmail = async () => undefined;
+  email.sendEmail = async () => undefined;
+  email.paymentMismatchEmail = () => ({ subject: 'Over', html: '<p>Over</p>' });
+
+  const result = await reconciliationService.reconcilePayment({
+    id: 'pay_over',
+    provider_reference: 'session_over',
+    account_number: '9391076543',
+    amount: 300,
+    payer_name: 'Ada',
+    reference: 'TFgoal123',
+    status: 'verified',
+  });
+
+  assert.equal(result.matched, true);
+  assert.equal(result.payment_match, 'over');
+  assert.equal(result.excess_amount, 50);
+  assert.deepEqual(increments, [{ goalId: 'goal_123', amount: 300 }]);
+  assert.equal(insertedRec?.status, 'pending');
+  assert.match(String(insertedRec?.notes), /excess ₦50/);
 });

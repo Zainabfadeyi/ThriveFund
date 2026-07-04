@@ -88,6 +88,11 @@ export const goalsApi = {
     apiRequest<Goal>(`/goals/${id}`, { method: 'PATCH', body: JSON.stringify(body) }),
   delete: (id: string) => apiRequest<void>(`/goals/${id}`, { method: 'DELETE' }),
   close: (id: string) => apiRequest<Goal>(`/goals/${id}/close`, { method: 'POST' }),
+  expireCollection: (id: string) =>
+    apiRequest<{ goal: Goal; virtual_account: VirtualAccount | null; expiry: { expired: boolean } | null }>(
+      `/goals/${id}/expire-collection`,
+      { method: 'POST' },
+    ),
   withdraw: (id: string, body: { payout_account_id?: string; amount?: number; narration?: string }) =>
     apiRequest<{ withdrawal: Withdrawal; transfer: unknown; available_before_withdrawal: number }>(`/goals/${id}/withdraw`, { method: 'POST', body: JSON.stringify(body) }),
   withdrawals: (id: string) => apiRequest<Withdrawal[]>(`/goals/${id}/withdrawals`),

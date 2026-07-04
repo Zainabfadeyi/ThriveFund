@@ -13,9 +13,9 @@ import { webhooksRepository } from '../webhooks/webhooks.repository';
 import { sendEmail, sendPaymentReceivedEmail, campaignCompletedEmail, paymentMismatchEmail } from '../../lib/email';
 import { env } from '../../config/env';
 import { execute } from '../../config/database';
-import { getPaymentProvider } from '../../providers/payment';
 import { broadcastRealtime } from '../../lib/realtime';
 import { withdrawalsService } from '../withdrawals/withdrawals.service';
+import { collectionLifecycleService } from '../goals/collection-lifecycle.service';
 import type { ResolveReconciliationDto } from './reconciliation.validators';
 
 interface PaymentRecord {
@@ -48,16 +48,23 @@ function classifyPayment(amount: number, currentAmount: number, targetAmount: nu
   remainingBefore: number;
 } {
   const remaining = Math.max(0, targetAmount - currentAmount);
-  if (remaining <= 0) {
-    return { matchType: 'over', creditAmount: 0, excessAmount: amount, remainingBefore: 0 };
+  const excessAmount = Math.max(0, currentAmount + amount - targetAmount);
+
+  let matchType: PaymentMatchType;
+  if (excessAmount > 0) {
+    matchType = 'over';
+  } else if (amount < remaining) {
+    matchType = 'under';
+  } else {
+    matchType = 'exact';
   }
-  if (amount > remaining) {
-    return { matchType: 'over', creditAmount: remaining, excessAmount: amount - remaining, remainingBefore: remaining };
-  }
-  if (amount < remaining) {
-    return { matchType: 'under', creditAmount: amount, excessAmount: 0, remainingBefore: remaining };
-  }
-  return { matchType: 'exact', creditAmount: amount, excessAmount: 0, remainingBefore: remaining };
+
+  return {
+    matchType,
+    creditAmount: amount,
+    excessAmount,
+    remainingBefore: remaining,
+  };
 }
 
 export const reconciliationService = {
@@ -86,9 +93,7 @@ export const reconciliationService = {
 
     const txnStatus = payment.status !== 'verified'
       ? TransactionStatus.Pending
-      : classification.creditAmount <= 0 && classification.excessAmount > 0
-        ? TransactionStatus.PendingReview
-        : TransactionStatus.Successful;
+      : TransactionStatus.Successful;
 
     if (txnStatus === TransactionStatus.Successful && shouldAutoCreateContributor(payment.payer_name)) {
       const contributorName = normalizedPayerName(payment.payer_name);
@@ -127,7 +132,7 @@ export const reconciliationService = {
       ? 'Exact payment matched'
       : classification.matchType === 'under'
         ? `Under-payment: ₦${paymentAmount.toLocaleString()} received, ₦${classification.remainingBefore.toLocaleString()} was remaining`
-        : `Over-payment: credited ₦${classification.creditAmount.toLocaleString()}, excess ₦${classification.excessAmount.toLocaleString()}`;
+        : `Over-payment: full ₦${paymentAmount.toLocaleString()} credited, excess ₦${classification.excessAmount.toLocaleString()} above target`;
 
     const rec = await reconciliationRepository.insert({
       id: `rec_${uuid().replace(/-/g, '').slice(0, 12)}`,
@@ -214,7 +219,7 @@ export const reconciliationService = {
         user_id: goal.user_id,
         type: 'payment',
         title: 'Over-payment received',
-        body: `${payment.payer_name} overpaid by ₦${classification.excessAmount.toLocaleString()} on ${goal.title}. Review in reconciliation.`,
+        body: `${payment.payer_name} paid ₦${paymentAmount.toLocaleString()} on ${goal.title} (₦${classification.excessAmount.toLocaleString()} above target). The full amount is in your collected balance and can be withdrawn after completion.`,
       });
       const { subject, html } = paymentMismatchEmail({
         goalTitle: goal.title as string,
@@ -251,18 +256,23 @@ export const reconciliationService = {
     const targetAmount = Number(goal.target_amount);
     if (currentAmount < targetAmount || (goal.status as string) === 'completed') return null;
 
-    const provider = getPaymentProvider();
-    const expireIdentifier = (virtualAccount.provider_reference as string) || (virtualAccount.account_number as string);
-    const expiry = await provider.expireVirtualAccount(expireIdentifier);
-    await virtualAccountsRepository.markInactive(virtualAccount.id as string);
-    const updatedGoal = await goalsRepository.markCompleted(goalId);
+    const { updatedGoal, expiryResult, graceDays } = await collectionLifecycleService.completeAtTarget(
+      goalId,
+      virtualAccount,
+      goal as Record<string, unknown>,
+    );
+    const expiry = expiryResult?.expiry;
+
+    const graceNote = graceDays > 0
+      ? ` The collection account stays open for ${graceDays} day${graceDays === 1 ? '' : 's'} to catch late payments, then expires automatically.`
+      : ' and the collection account was expired.';
 
     await notificationsRepository.insert({
       id: `ntf_${uuid().replace(/-/g, '').slice(0, 12)}`,
       user_id: goal.user_id as string,
       type: 'campaign_completed',
       title: 'Campaign target reached',
-      body: `${goal.title as string} reached its target and the collection account was expired.`,
+      body: `${goal.title as string} reached its target${currentAmount > targetAmount ? ` with ₦${(currentAmount - targetAmount).toLocaleString()} excess` : ''}.${graceNote}`,
     });
 
     if (goal.email) {
@@ -287,7 +297,8 @@ export const reconciliationService = {
       metadata: {
         current_amount: currentAmount,
         target_amount: targetAmount,
-        expired_virtual_account: expiry.expired,
+        expired_virtual_account: expiry?.expired ?? false,
+        collection_grace_days: graceDays,
       },
     });
 
@@ -301,12 +312,13 @@ export const reconciliationService = {
         target_amount: targetAmount,
         virtual_account_id: virtualAccount.id,
         slug: goal.slug ?? null,
+        collection_grace_days: graceDays,
       },
     });
 
     await withdrawalsService.autoPayoutForCompletedGoal(goal.user_id as string, goalId).catch(() => undefined);
 
-    return { completed: true, goal: updatedGoal, expiry };
+    return { completed: true, goal: updatedGoal, expiry, grace_days: graceDays };
   },
 
   async list(userId: string, query: {

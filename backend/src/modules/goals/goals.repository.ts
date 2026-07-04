@@ -160,12 +160,19 @@ export const goalsRepository = {
     return rows[0] ?? null;
   },
 
-  async markCompleted(goalId: string): Promise<GoalRow | null> {
+  async markCompleted(goalId: string, graceDays: number | null = null): Promise<GoalRow | null> {
+    const expiryClause = graceDays != null && graceDays > 0
+      ? ', collection_expires_at = DATE_ADD(NOW(), INTERVAL ? DAY)'
+      : '';
+    const params = graceDays != null && graceDays > 0
+      ? [graceDays, goalId]
+      : [goalId];
+
     const result = await execute(
       `UPDATE goals
-       SET status = 'completed', completed_at = COALESCE(completed_at, NOW()), updated_at = NOW()
+       SET status = 'completed', completed_at = COALESCE(completed_at, NOW()), updated_at = NOW()${expiryClause}
        WHERE id = ? AND status <> 'completed'`,
-      [goalId],
+      params,
     );
     if (!result.affectedRows) {
       const current = await query<GoalRow>('SELECT * FROM goals WHERE id = ?', [goalId]);
@@ -173,6 +180,41 @@ export const goalsRepository = {
     }
     const rows = await query<GoalRow>('SELECT * FROM goals WHERE id = ?', [goalId]);
     return rows[0] ?? null;
+  },
+
+  async markClosedEarly(goalId: string, userId: string): Promise<GoalRow | null> {
+    const result = await execute(
+      `UPDATE goals
+       SET status = 'completed',
+           completed_at = COALESCE(completed_at, NOW()),
+           closed_at = NOW(),
+           collection_expires_at = NOW(),
+           updated_at = NOW()
+       WHERE id = ? AND user_id = ? AND status <> 'completed'`,
+      [goalId, userId],
+    );
+    if (!result.affectedRows) return null;
+    const rows = await query<GoalRow>('SELECT * FROM goals WHERE id = ?', [goalId]);
+    return rows[0] ?? null;
+  },
+
+  async clearCollectionExpiry(goalId: string) {
+    await execute(
+      'UPDATE goals SET collection_expires_at = NULL, updated_at = NOW() WHERE id = ?',
+      [goalId],
+    );
+  },
+
+  async findDueForCollectionExpiry() {
+    return query(
+      `SELECT g.id AS goal_id, g.user_id, g.organization_id, g.slug, g.title,
+              va.id AS va_id, va.provider_reference, va.account_number
+       FROM goals g
+       JOIN virtual_accounts va ON va.goal_id = g.id AND va.status = 'active'
+       WHERE g.status = 'completed'
+         AND g.collection_expires_at IS NOT NULL
+         AND g.collection_expires_at <= NOW()`,
+    );
   },
 
   async incrementAmount(goalId: string, amount: number) {

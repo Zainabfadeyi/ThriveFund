@@ -97,8 +97,11 @@ export interface Goal {
   payout_fee_ngn?: number;
   net_payout_target?: number;
   estimated_net_available?: number;
+  excess_amount?: number;
   completed_at?: string | null;
   closed_at?: string | null;
+  collection_expires_at?: string | null;
+  collection_grace_days?: number;
   created_at?: string;
   owner_email?: string;
   virtual_account?: VirtualAccount | null;

@@ -51,6 +51,22 @@ export const virtualAccountsRepository = {
     return rows[0] ?? null;
   },
 
+  async findActiveByGoalAndUser(goalId: string, userId: string) {
+    return this.findByGoalAndUser(goalId, userId);
+  },
+
+  async findLatestByGoalAndUser(goalId: string, userId: string) {
+    const rows = await query(
+      `SELECT va.* FROM virtual_accounts va
+       JOIN goals g ON g.id = va.goal_id
+       WHERE va.goal_id = ? AND g.user_id = ?
+       ORDER BY va.created_at DESC
+       LIMIT 1`,
+      [goalId, userId],
+    );
+    return rows[0] ?? null;
+  },
+
   async findAllByUser(userId: string) {
     return query(
       `SELECT va.id, va.goal_id, g.title AS goal_title,

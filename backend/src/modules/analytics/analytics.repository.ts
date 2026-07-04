@@ -4,18 +4,19 @@ export const analyticsRepository = {
   async getOverview(userId: string) {
     const rows = await query(
       `SELECT
-         COALESCE(SUM(g.current_amount), 0) AS total_saved,
-         COALESCE(SUM(CASE WHEN g.status = 'active' THEN 1 ELSE 0 END), 0) AS active_goals,
-         COALESCE(COUNT(DISTINCT LOWER(TRIM(t.contributor_name))), 0) AS contributors_count,
-         COALESCE(SUM(
-           CASE WHEN t.status = 'successful'
-             AND DATE_FORMAT(t.paid_at, '%Y-%m') = DATE_FORMAT(NOW(), '%Y-%m')
-           THEN t.amount ELSE 0 END
-         ), 0) AS this_month_amount
-       FROM goals g
-       LEFT JOIN transactions t ON t.goal_id = g.id
-       WHERE g.user_id = ?`,
-      [userId],
+         (SELECT COALESCE(SUM(current_amount), 0) FROM goals WHERE user_id = ?) AS total_saved,
+         (SELECT COALESCE(SUM(CASE WHEN status = 'active' THEN 1 ELSE 0 END), 0) FROM goals WHERE user_id = ?) AS active_goals,
+         (SELECT COALESCE(COUNT(DISTINCT LOWER(TRIM(contributor_name))), 0)
+          FROM transactions t
+          JOIN goals g ON g.id = t.goal_id
+          WHERE g.user_id = ? AND t.status = 'successful') AS contributors_count,
+         (SELECT COALESCE(SUM(t.amount), 0)
+          FROM transactions t
+          JOIN goals g ON g.id = t.goal_id
+          WHERE g.user_id = ?
+            AND t.status = 'successful'
+            AND DATE_FORMAT(t.paid_at, '%Y-%m') = DATE_FORMAT(NOW(), '%Y-%m')) AS this_month_amount`,
+      [userId, userId, userId, userId],
     );
     return rows[0];
   },

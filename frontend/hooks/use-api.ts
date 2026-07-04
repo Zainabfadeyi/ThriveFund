@@ -114,8 +114,12 @@ export function useGoalOverview(id: string) {
     queryFn: async () => (await goalsApi.overview(id)).data,
     enabled: !!id,
     refetchInterval: (query) => {
-      const status = query.state.data?.goal.status;
-      return status && status !== 'completed' ? 10_000 : false;
+      const goal = query.state.data?.goal;
+      if (!goal) return false;
+      if (goal.status !== 'completed') return 10_000;
+      const vaActive = query.state.data?.virtual_account?.status === 'active';
+      const gracePending = goal.collection_expires_at && new Date(goal.collection_expires_at) > new Date();
+      return vaActive || gracePending ? 15_000 : false;
     },
     staleTime: 10_000,
   });
@@ -145,6 +149,31 @@ export function useCreateVirtualAccount() {
       qc.invalidateQueries({ queryKey: queryKeys.goalOverview(goalId) });
       qc.invalidateQueries({ queryKey: queryKeys.virtualAccounts });
       qc.invalidateQueries({ queryKey: queryKeys.dashboardBootstrap });
+    },
+  });
+}
+
+export function useCloseGoal() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (goalId: string) => goalsApi.close(goalId),
+    onSuccess: (_, goalId) => {
+      qc.invalidateQueries({ queryKey: queryKeys.goal(goalId) });
+      qc.invalidateQueries({ queryKey: queryKeys.goalOverview(goalId) });
+      qc.invalidateQueries({ queryKey: queryKeys.goals() });
+      qc.invalidateQueries({ queryKey: queryKeys.dashboardBootstrap });
+    },
+  });
+}
+
+export function useExpireCollection() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (goalId: string) => goalsApi.expireCollection(goalId),
+    onSuccess: (_, goalId) => {
+      qc.invalidateQueries({ queryKey: queryKeys.goal(goalId) });
+      qc.invalidateQueries({ queryKey: queryKeys.goalOverview(goalId) });
+      qc.invalidateQueries({ queryKey: queryKeys.goalVa(goalId) });
     },
   });
 }
