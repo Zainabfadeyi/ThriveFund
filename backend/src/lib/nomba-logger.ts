@@ -2,7 +2,7 @@ type NombaLogContext = {
   method: string;
   path: string;
   merchantTxRef?: string;
-  amountKobo?: number;
+  amount?: number;
   status?: number;
   providerCode?: string;
   latencyMs?: number;

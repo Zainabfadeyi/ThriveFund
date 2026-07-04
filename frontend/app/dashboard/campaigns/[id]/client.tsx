@@ -258,7 +258,7 @@ export default function CampaignDetailClient() {
         <Card className="mb-8">
           <CardHeader><CardTitle>Withdraw Funds</CardTitle></CardHeader>
           <CardContent className="space-y-4">
-            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
               <div>
                 <p className="text-sm text-muted-foreground">Collected</p>
                 <p className="text-xl font-bold">{formatNaira(Number(campaign.current_amount))}</p>
@@ -268,35 +268,29 @@ export default function CampaignDetailClient() {
                 <p className="text-xl font-bold">{formatNaira(reservedWithdrawals)}</p>
               </div>
               <div>
-                <p className="text-sm text-muted-foreground">Nomba wallet</p>
-                <p className="text-xl font-bold">
-                  {nombaBalanceAvailable && nombaBalance != null ? formatNaira(nombaBalance) : 'Checking...'}
-                </p>
-              </div>
-              <div>
                 <p className="text-sm text-muted-foreground">Available to withdraw</p>
                 <p className="text-xl font-bold text-primary">{formatNaira(availableForWithdrawal)}</p>
               </div>
             </div>
             {!nombaBalanceAvailable && campaignAvailable > 0 && (
               <div className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">
-                We could not read your Nomba settlement wallet yet, so withdrawals are paused. Collected funds may still be settling — try again in a few hours.
+                We could not verify the settled payout balance yet, so withdrawals are paused. Collected funds may still be settling — try again in a few hours.
               </div>
             )}
             {nombaBalanceAvailable && settlementLag && (
               <div className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">
-                Your campaign ledger shows {formatNaira(campaignAvailable)}, but the Nomba settlement wallet only has {formatNaira(nombaBalance ?? 0)} right now.
+                Your campaign shows {formatNaira(campaignAvailable)} available, but only {formatNaira(nombaBalance ?? 0)} has settled for payout right now.
                 Payouts are capped at {formatNaira(availableForWithdrawal)} after reserving {formatNaira(feeReserve)} for transfer fees. This usually means payments are still settling.
               </div>
             )}
             {nombaBalanceAvailable && !settlementLag && availableForWithdrawal > 0 && (
               <div className="rounded-lg border border-blue-200 bg-blue-50 p-3 text-sm text-blue-900">
-                A payout of {formatNaira(availableForWithdrawal)} needs {formatNaira(availableForWithdrawal + feeReserve)} in the Nomba wallet ({formatNaira(availableForWithdrawal)} to you + {formatNaira(feeReserve)} transfer fee).
+                You can withdraw up to {formatNaira(availableForWithdrawal)} now. We reserve {formatNaira(feeReserve)} for the transfer fee so the payout can complete cleanly.
               </div>
             )}
             {availableForWithdrawal <= 0 && nombaBalanceAvailable && campaignAvailable > feeReserve && (
               <div className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">
-                There is not enough settled balance in Nomba to pay out from this campaign yet. Wait for incoming transfers to settle, then try again.
+                There is not enough settled balance to pay out from this campaign yet. Wait for incoming transfers to settle, then try again.
               </div>
             )}
             {!payoutAccounts?.length ? (

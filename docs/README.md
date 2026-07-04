@@ -10,6 +10,7 @@ Technical documentation for the ThriveFund platform — a goal-based savings and
 | [API Endpoints](./api/endpoints.md) | Complete REST API reference (all endpoints) |
 | [API Quick Reference](./api/quick-reference.md) | Endpoint summary table for fast lookup |
 | [Webhook Specification](./api/webhooks.md) | Nomba webhook processing and reconciliation rules |
+| [Nomba Withdrawal Flow](./api/nomba-withdrawals.md) | How campaign virtual accounts, sub-account balance, and payout transfers fit together |
 | [Backend Modules](./backend-modules.md) | Modular monolith architecture and payment flow |
 
 ## Base URLs

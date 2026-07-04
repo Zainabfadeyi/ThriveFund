@@ -122,8 +122,8 @@ test('NombaProvider maps SUCCESS transfer responses as successful', async () => 
       data: {
         id: 'API-TRANSFER-123',
         status: 'SUCCESS',
-        amount: 500000,
-        fee: 5000,
+        amount: 5000,
+        fee: 50,
       },
     });
   };
@@ -145,7 +145,7 @@ test('NombaProvider maps SUCCESS transfer responses as successful', async () => 
   const transferCall = calls.find((call) => call.url.includes('/v2/transfers/bank'));
   assert.ok(transferCall);
   const body = JSON.parse(String(transferCall.init.body));
-  assert.equal(body.amount, 500000);
+  assert.equal(body.amount, 5000);
 });
 
 test('NombaProvider maps 201 PENDING_BILLING transfer responses as processing', async () => {

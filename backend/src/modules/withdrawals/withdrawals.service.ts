@@ -35,7 +35,7 @@ export const withdrawalsService = {
       nombaBalance = await getPaymentProvider().getAccountBalance();
     } catch (err) {
       nombaBalance = null;
-      balanceError = err instanceof Error ? err.message : 'Unable to read Nomba wallet balance';
+      balanceError = err instanceof Error ? err.message : 'Unable to read settled payout balance';
     }
 
     const settlementAvailable = maxWithdrawableNgn(
@@ -107,7 +107,7 @@ export const withdrawalsService = {
 
     if (nombaBalance == null) {
       throw Errors.conflict(
-        'We could not verify your Nomba settlement wallet right now. Payments may still be settling — please try again in a few hours.',
+        'We could not verify the settled payout balance right now. Payments may still be settling — please try again in a few hours.',
       );
     }
 
@@ -122,7 +122,7 @@ export const withdrawalsService = {
     if (amount <= 0) {
       throw Errors.conflict(
         nombaBalance <= feeReserve
-          ? `Nomba settlement wallet has only ${formatNaira(nombaBalance)}. A payout needs the withdrawal amount plus ${formatNaira(feeReserve)} transfer fee.`
+          ? `The settled payout balance is only ${formatNaira(nombaBalance)}. A payout needs the withdrawal amount plus ${formatNaira(feeReserve)} transfer fee.`
           : 'No campaign balance is available for withdrawal',
       );
     }
@@ -166,8 +166,6 @@ export const withdrawalsService = {
         },
       );
     }
-
-    const activeVa = await virtualAccountsRepository.findByGoalAndUser(goalId, userId);
 
     const withdrawalId = `wd_${uuid().replace(/-/g, '').slice(0, 12)}`;
     const withdrawal = await withdrawalsRepository.insert({
@@ -217,12 +215,6 @@ export const withdrawalsService = {
           nomba_balance: freshBalance,
           required_wallet_balance: pendingWalletCommitmentNgn(livePending.amount, livePending.count),
         });
-      }
-
-      if (activeVa) {
-        const identifier = (activeVa.provider_reference as string) || (activeVa.account_number as string);
-        await provider.expireVirtualAccount(identifier).catch(() => undefined);
-        await virtualAccountsRepository.markInactive(activeVa.id as string);
       }
 
       const merchantTxRef = `TF-WD-${withdrawalId.replace(/[^a-zA-Z0-9]/g, '').slice(0, 48)}`.slice(0, 64);
@@ -314,6 +306,12 @@ export const withdrawalsService = {
 
     if (transfer.status === 'successful' && previousStatus !== 'successful') {
       await goalsRepository.markClosedOut(goalId, userId);
+      const activeVa = await virtualAccountsRepository.findByGoalAndUser(goalId, userId);
+      if (activeVa) {
+        const identifier = (activeVa.provider_reference as string) || (activeVa.account_number as string);
+        await getPaymentProvider().expireVirtualAccount(identifier).catch(() => undefined);
+        await virtualAccountsRepository.markInactive(activeVa.id as string);
+      }
       await this.emailOwner(ownerEmail, 'successful', goalTitle, amount, account);
       await logAudit({
         action: AuditAction.WithdrawalCompleted,
@@ -485,10 +483,10 @@ function buildWithdrawalCapMessage(input: {
     : '';
 
   if (nombaBalance < campaignAvailable) {
-    return `Your campaign shows ${formatNaira(campaignAvailable)} available, but the Nomba settlement wallet only has ${formatNaira(nombaBalance)} right now.${pendingNote} A ${formatNaira(amount)} payout needs ${formatNaira(required)} in the wallet (including ${formatNaira(feeReserve)} transfer fee). Maximum you can withdraw now is ${formatNaira(maxWithdrawable)}. Payments may still be settling — try a smaller amount or wait a few hours.`;
+    return `Your campaign shows ${formatNaira(campaignAvailable)} available, but only ${formatNaira(nombaBalance)} has settled for payout right now.${pendingNote} A ${formatNaira(amount)} payout needs ${formatNaira(required)} available, including the ${formatNaira(feeReserve)} transfer fee. Maximum you can withdraw now is ${formatNaira(maxWithdrawable)}. Payments may still be settling — try a smaller amount or wait a few hours.`;
   }
 
-  return `Nomba settlement wallet has ${formatNaira(nombaBalance)}.${pendingNote} A ${formatNaira(amount)} payout needs ${formatNaira(required)} in the wallet (including ${formatNaira(feeReserve)} transfer fee). Maximum you can withdraw now is ${formatNaira(maxWithdrawable)}.`;
+  return `The settled payout balance is ${formatNaira(nombaBalance)}.${pendingNote} A ${formatNaira(amount)} payout needs ${formatNaira(required)} available, including the ${formatNaira(feeReserve)} transfer fee. Maximum you can withdraw now is ${formatNaira(maxWithdrawable)}.`;
 }
 
 function humanizeTransferError(
@@ -501,9 +499,9 @@ function humanizeTransferError(
   if (/INSUFFICIENT_BALANCE/i.test(msg)) {
     const required = requiredWalletBalanceForPayout(amount);
     const walletNote = nombaBalance != null
-      ? ` The settlement wallet currently shows ${formatNaira(nombaBalance)}.`
+      ? ` The settled payout balance currently shows ${formatNaira(nombaBalance)}.`
       : '';
-    return `Nomba rejected this payout because the settlement wallet does not have ${formatNaira(required)} available (${formatNaira(amount)} plus ${formatNaira(feeReserve)} transfer fee).${walletNote} This usually means payments are still settling. Try withdrawing a smaller amount or wait a few hours before retrying.`;
+    return `This payout was rejected because there is not enough settled balance available for the payout and transfer fee (${formatNaira(required)} total).${walletNote} This usually means payments are still settling. Try withdrawing a smaller amount or wait a few hours before retrying.`;
   }
   return msg;
 }

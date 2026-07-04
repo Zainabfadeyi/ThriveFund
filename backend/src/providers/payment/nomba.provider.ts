@@ -1,7 +1,7 @@
 import crypto from 'crypto';
 import { env } from '../../config/env';
 import { Errors } from '../../lib/errors';
-import { fromKobo, normalizeNombaTransactionAmount, toKobo } from '../../lib/money';
+import { normalizeNombaTransactionAmount } from '../../lib/money';
 import { logNombaCall } from '../../lib/nomba-logger';
 import { PaymentProviderName } from '../../shared/types/enums';
 import type {
@@ -389,15 +389,14 @@ export class NombaProvider implements PaymentProvider {
       env.NOMBA_VIRTUAL_ACCOUNT_SCOPE === 'sub_account'
         ? `/v2/transfers/bank/${encodeURIComponent(requiredEnv('NOMBA_SUB_ACCOUNT_ID', this.subAccountId))}`
         : '/v2/transfers/bank';
-    const amountKobo = toKobo(request.amount);
     const response = await this.request<NombaBankTransfer>(path, {
       method: 'POST',
       idempotencyKey: request.merchantTxRef,
       acceptCodes: ['201'],
       merchantTxRef: request.merchantTxRef,
-      amountKobo,
+      amount: request.amount,
       body: {
-        amount: amountKobo,
+        amount: request.amount,
         accountNumber: request.accountNumber,
         accountName: request.accountName,
         bankCode: request.bankCode,
@@ -412,8 +411,8 @@ export class NombaProvider implements PaymentProvider {
       provider: PaymentProviderName.Nomba,
       providerReference: transfer.id ?? request.merchantTxRef,
       status: resolveTransferStatus(response),
-      amount: fromKobo(Number(transfer.amount ?? amountKobo)),
-      fee: transfer.fee != null ? fromKobo(Number(transfer.fee)) : undefined,
+      amount: Number(transfer.amount ?? request.amount),
+      fee: transfer.fee != null ? Number(transfer.fee) : undefined,
       raw: response,
     };
   }
@@ -547,7 +546,7 @@ export class NombaProvider implements PaymentProvider {
       idempotencyKey?: string;
       acceptCodes?: string[];
       merchantTxRef?: string;
-      amountKobo?: number;
+      amount?: number;
     },
   ): Promise<NombaResponse<T> & T> {
     const started = Date.now();
@@ -569,7 +568,7 @@ export class NombaProvider implements PaymentProvider {
         method: options.method,
         path,
         merchantTxRef: options.merchantTxRef ?? options.idempotencyKey,
-        amountKobo: options.amountKobo,
+        amount: options.amount,
         latencyMs: Date.now() - started,
         error: err instanceof Error ? err.message : 'Network error',
       });
@@ -598,7 +597,7 @@ export class NombaProvider implements PaymentProvider {
         method: options.method,
         path,
         merchantTxRef: options.merchantTxRef ?? options.idempotencyKey,
-        amountKobo: options.amountKobo,
+        amount: options.amount,
         status: response.status,
         providerCode: nombaCode(json),
         latencyMs: Date.now() - started,
@@ -626,7 +625,7 @@ export class NombaProvider implements PaymentProvider {
         method: options.method,
         path,
         merchantTxRef: options.merchantTxRef ?? options.idempotencyKey,
-        amountKobo: options.amountKobo,
+        amount: options.amount,
         status: response.status,
         providerCode: nombaCode(json),
         latencyMs: Date.now() - started,
@@ -652,7 +651,7 @@ export class NombaProvider implements PaymentProvider {
       method: options.method,
       path,
       merchantTxRef: options.merchantTxRef ?? options.idempotencyKey,
-      amountKobo: options.amountKobo,
+      amount: options.amount,
       status: response.status,
       providerCode: nombaCode(json),
       latencyMs: Date.now() - started,
