@@ -139,7 +139,9 @@ export default function CampaignDetailClient() {
       setWithdrawalAmount('');
       const status = res.data.withdrawal.status;
       if (status === 'successful') {
-        toast.success('Withdrawal completed — funds sent to your bank account');
+        toast.success('Withdrawal completed — funds sent to your bank account', {
+          style: { background: '#ecfdf5', color: '#065f46', border: '1px solid #a7f3d0' },
+        });
       } else if (status === 'processing' || status === 'pending') {
         toast.success('Withdrawal is processing — your balance will update when Nomba confirms');
       } else {

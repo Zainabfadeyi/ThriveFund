@@ -20,7 +20,7 @@ export const contributorsRepository = {
               ) AS avatar_initials
        FROM contributors c
        JOIN goals g ON g.id = c.goal_id
-       LEFT JOIN transactions t ON t.contributor_name = c.name AND t.goal_id = c.goal_id
+       LEFT JOIN transactions t ON LOWER(TRIM(t.contributor_name)) = LOWER(TRIM(c.name)) AND t.goal_id = c.goal_id
        WHERE g.user_id = ?
        GROUP BY c.id, c.name, c.email, c.group_label, c.expected_amount
        ORDER BY total_contributed DESC`,
@@ -41,7 +41,7 @@ export const contributorsRepository = {
                 ELSE 'overpaid'
               END AS payment_status
        FROM contributors c
-       LEFT JOIN transactions t ON t.contributor_name = c.name AND t.goal_id = c.goal_id
+       LEFT JOIN transactions t ON LOWER(TRIM(t.contributor_name)) = LOWER(TRIM(c.name)) AND t.goal_id = c.goal_id
        WHERE c.goal_id = ?
        GROUP BY c.id, c.name, c.email, c.phone_number, c.group_label, c.expected_amount
        ORDER BY total_contributed DESC`,
@@ -67,6 +67,34 @@ export const contributorsRepository = {
         data.id, data.goal_id, data.name, data.email ?? null, data.phone_number ?? null,
         data.group_label ?? null, data.expected_amount ?? null, data.unique_reference,
       ],
+    );
+    const rows = await query('SELECT * FROM contributors WHERE id = ?', [data.id]);
+    return rows[0];
+  },
+
+  async findByGoalAndNormalizedName(goalId: string, name: string) {
+    const rows = await query(
+      `SELECT *
+       FROM contributors
+       WHERE goal_id = ? AND LOWER(TRIM(name)) = LOWER(TRIM(?))
+       LIMIT 1`,
+      [goalId, name],
+    );
+    return rows[0] ?? null;
+  },
+
+  async insertAutoDetected(data: {
+    id: string;
+    goal_id: string;
+    organization_id?: string | null;
+    name: string;
+    unique_reference: string;
+  }) {
+    await execute(
+      `INSERT INTO contributors
+         (id, goal_id, organization_id, name, email, phone_number, group_label, expected_amount, unique_reference, created_at)
+       VALUES (?, ?, ?, ?, NULL, NULL, 'Auto-detected', NULL, ?, NOW())`,
+      [data.id, data.goal_id, data.organization_id ?? null, data.name, data.unique_reference],
     );
     const rows = await query('SELECT * FROM contributors WHERE id = ?', [data.id]);
     return rows[0];
@@ -118,7 +146,7 @@ export const contributorsRepository = {
          SELECT c.id, c.expected_amount,
                 COALESCE(SUM(CASE WHEN t.status = 'successful' THEN t.amount ELSE 0 END), 0) AS total_paid
          FROM contributors c
-         LEFT JOIN transactions t ON t.contributor_name = c.name AND t.goal_id = c.goal_id
+         LEFT JOIN transactions t ON LOWER(TRIM(t.contributor_name)) = LOWER(TRIM(c.name)) AND t.goal_id = c.goal_id
          WHERE c.goal_id = ?
          GROUP BY c.id, c.expected_amount
        ) payer_totals`,
@@ -134,7 +162,7 @@ export const contributorsRepository = {
          SELECT c.id, c.name, c.email, c.expected_amount,
                 COALESCE(SUM(CASE WHEN t.status = 'successful' THEN t.amount ELSE 0 END), 0) AS total_contributed
          FROM contributors c
-         LEFT JOIN transactions t ON t.contributor_name = c.name AND t.goal_id = c.goal_id
+         LEFT JOIN transactions t ON LOWER(TRIM(t.contributor_name)) = LOWER(TRIM(c.name)) AND t.goal_id = c.goal_id
          WHERE c.goal_id = ? AND c.email IS NOT NULL AND c.expected_amount IS NOT NULL
          GROUP BY c.id, c.name, c.email, c.expected_amount
        ) rows_with_totals

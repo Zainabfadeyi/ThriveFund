@@ -114,7 +114,7 @@ export const withdrawalsRepository = {
     await execute(
       `UPDATE withdrawals
        SET status = 'failed', failure_reason = ?, provider_reference = ?, fee = ?, processed_at = NOW()
-       WHERE id = ?`,
+       WHERE id = ? AND status != 'successful'`,
       [reason, providerReference ?? null, fee ?? null, id],
     );
     return this.findById(id);

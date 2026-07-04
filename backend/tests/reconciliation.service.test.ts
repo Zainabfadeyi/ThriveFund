@@ -33,12 +33,14 @@ test('reconciliationService creates transaction, increments goal, and keeps orga
   const { reconciliationRepository } = await import('../src/modules/reconciliation/reconciliation.repository');
   const { transactionsRepository } = await import('../src/modules/transactions/transactions.repository');
   const { goalsRepository } = await import('../src/modules/goals/goals.repository');
+  const { contributorsRepository } = await import('../src/modules/contributors/contributors.repository');
   const { notificationsRepository } = await import('../src/modules/notifications/notifications.repository');
   const { webhooksRepository } = await import('../src/modules/webhooks/webhooks.repository');
   const audit = await import('../src/lib/audit');
   const email = await import('../src/lib/email');
 
   const transactions: Record<string, unknown>[] = [];
+  const contributors: Record<string, unknown>[] = [];
   const increments: Array<{ goalId: string; amount: number }> = [];
 
   virtualAccountsRepository.findByAccountNumber = async () => ({
@@ -48,6 +50,11 @@ test('reconciliationService creates transaction, increments goal, and keeps orga
   });
   transactionsRepository.insert = async (data: Record<string, unknown>) => {
     transactions.push(data);
+    return { id: data.id, ...data };
+  };
+  contributorsRepository.findByGoalAndNormalizedName = async () => null;
+  contributorsRepository.insertAutoDetected = async (data: Record<string, unknown>) => {
+    contributors.push(data);
     return { id: data.id, ...data };
   };
   goalsRepository.incrementAmount = async (goalId: string, amount: number) => {
@@ -85,7 +92,84 @@ test('reconciliationService creates transaction, increments goal, and keeps orga
   assert.equal(result.matched, true);
   assert.equal(transactions[0].organization_id, 'org_123');
   assert.equal(transactions[0].status, 'successful');
+  assert.equal(contributors.length, 1);
+  assert.equal(contributors[0].goal_id, 'goal_123');
+  assert.equal(contributors[0].organization_id, 'org_123');
+  assert.equal(contributors[0].name, 'Ada');
   assert.deepEqual(increments, [{ goalId: 'goal_123', amount: 5000 }]);
+});
+
+test('reconciliationService auto-creates one contributor for repeat successful payer names', async () => {
+  const { reconciliationService } = await import('../src/modules/reconciliation/reconciliation.service');
+  const { virtualAccountsRepository } = await import('../src/modules/virtual-accounts/virtual-accounts.repository');
+  const { reconciliationRepository } = await import('../src/modules/reconciliation/reconciliation.repository');
+  const { transactionsRepository } = await import('../src/modules/transactions/transactions.repository');
+  const { goalsRepository } = await import('../src/modules/goals/goals.repository');
+  const { contributorsRepository } = await import('../src/modules/contributors/contributors.repository');
+  const { notificationsRepository } = await import('../src/modules/notifications/notifications.repository');
+  const { webhooksRepository } = await import('../src/modules/webhooks/webhooks.repository');
+  const audit = await import('../src/lib/audit');
+  const email = await import('../src/lib/email');
+
+  const contributors: Record<string, unknown>[] = [];
+  const transactions: Record<string, unknown>[] = [];
+
+  virtualAccountsRepository.findByAccountNumber = async () => ({
+    id: 'va_123',
+    goal_id: 'goal_123',
+    organization_id: 'org_123',
+  });
+  contributorsRepository.findByGoalAndNormalizedName = async (_goalId: string, name: string) => (
+    contributors.find((row) => String(row.name).trim().toLowerCase() === name.trim().toLowerCase()) ?? null
+  );
+  contributorsRepository.insertAutoDetected = async (data: Record<string, unknown>) => {
+    contributors.push(data);
+    return { id: data.id, ...data };
+  };
+  transactionsRepository.insert = async (data: Record<string, unknown>) => {
+    transactions.push(data);
+    return { id: data.id, ...data };
+  };
+  goalsRepository.incrementAmount = async (goalId: string) => ({ id: goalId });
+  goalsRepository.findCompletionState = async () => ({
+    id: 'goal_123',
+    user_id: 'usr_123',
+    organization_id: 'org_123',
+    title: 'School fees',
+    current_amount: 0,
+    target_amount: 100000,
+    status: 'active',
+  });
+  reconciliationRepository.insert = async (data: Record<string, unknown>) => ({ id: data.id, ...data });
+  webhooksRepository.markStatus = async () => ({ id: 'wh_123' });
+  goalsRepository.findOwnerByGoalId = async () => null;
+  notificationsRepository.insert = async () => ({ id: 'ntf_123' });
+  audit.logAudit = async () => undefined;
+  email.sendPaymentReceivedEmail = async () => undefined;
+
+  await reconciliationService.reconcilePayment({
+    id: 'pay_123',
+    provider_reference: 'session_123',
+    account_number: '9391076543',
+    amount: 5000,
+    payer_name: ' Ada  Okafor ',
+    reference: 'TFgoal123',
+    status: 'verified',
+  });
+
+  await reconciliationService.reconcilePayment({
+    id: 'pay_456',
+    provider_reference: 'session_456',
+    account_number: '9391076543',
+    amount: 3000,
+    payer_name: 'ada okafor',
+    reference: 'TFgoal123',
+    status: 'verified',
+  });
+
+  assert.equal(contributors.length, 1);
+  assert.equal(contributors[0].name, 'Ada Okafor');
+  assert.equal(transactions.length, 2);
 });
 
 test('reconciliationService completes campaign and expires account once target is reached', async () => {

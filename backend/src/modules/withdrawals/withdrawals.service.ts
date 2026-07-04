@@ -297,6 +297,9 @@ export const withdrawalsService = {
     const { withdrawalId, goalId, userId, goalTitle, amount, account, ownerEmail, organizationId, transfer } = input;
     const existing = await withdrawalsRepository.findById(withdrawalId);
     const previousStatus = (existing?.status as string | undefined) ?? 'pending';
+    if (previousStatus === 'successful' && transfer.status === 'failed') {
+      return existing;
+    }
 
     const updated = transfer.status === 'failed'
       ? await withdrawalsRepository.markFailed(withdrawalId, 'Provider returned failed status', transfer.providerReference, transfer.fee)
@@ -409,7 +412,7 @@ export const withdrawalsService = {
     }
 
     if (failureEvents.includes(input.event)) {
-      if ((withdrawal.status as string) === 'failed') {
+      if ((withdrawal.status as string) === 'successful' || (withdrawal.status as string) === 'failed') {
         return { matched: true as const, duplicate: true as const, withdrawal };
       }
 
@@ -419,7 +422,7 @@ export const withdrawalsService = {
         input.providerReference ?? (withdrawal.provider_reference as string | undefined),
         input.fee,
       );
-      if ((withdrawal.status as string) !== 'successful') {
+      if ((updated?.status as string | undefined) === 'failed') {
         await this.emailOwner(
           owner?.email,
           'failed',

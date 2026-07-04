@@ -6,7 +6,7 @@ export const analyticsRepository = {
       `SELECT
          COALESCE(SUM(g.current_amount), 0) AS total_saved,
          COALESCE(SUM(CASE WHEN g.status = 'active' THEN 1 ELSE 0 END), 0) AS active_goals,
-         COALESCE(COUNT(DISTINCT t.contributor_name), 0) AS contributors_count,
+         COALESCE(COUNT(DISTINCT LOWER(TRIM(t.contributor_name))), 0) AS contributors_count,
          COALESCE(SUM(
            CASE WHEN t.status = 'successful'
              AND DATE_FORMAT(t.paid_at, '%Y-%m') = DATE_FORMAT(NOW(), '%Y-%m')
@@ -75,12 +75,12 @@ export const analyticsRepository = {
 
   async getTopContributors(userId: string, limit: number) {
     return query(
-      `SELECT t.contributor_name AS name,
+      `SELECT MIN(TRIM(t.contributor_name)) AS name,
               COALESCE(SUM(CASE WHEN t.status = 'successful' THEN t.amount ELSE 0 END), 0) AS total_contributed,
               COUNT(*) AS transaction_count
        FROM transactions t JOIN goals g ON g.id = t.goal_id
        WHERE g.user_id = ? AND t.status = 'successful'
-       GROUP BY t.contributor_name
+       GROUP BY LOWER(TRIM(t.contributor_name))
        ORDER BY total_contributed DESC
        LIMIT ?`,
       [userId, limit],

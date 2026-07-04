@@ -59,7 +59,7 @@ export const goalsRepository = {
               goals.current_amount, goals.status, goals.color, organizations.name AS organization_name,
               GREATEST(0, DATEDIFF(deadline, NOW())) AS days_left,
               ROUND((current_amount / NULLIF(target_amount, 0)) * 100) AS progress_percent,
-              (SELECT COUNT(*) FROM transactions WHERE goal_id = goals.id AND status = 'successful') AS contributors_count
+              (SELECT COUNT(DISTINCT LOWER(TRIM(contributor_name))) FROM transactions WHERE goal_id = goals.id AND status = 'successful') AS contributors_count
        FROM goals
        LEFT JOIN organizations ON organizations.id = goals.organization_id
        WHERE ${where}
@@ -75,7 +75,8 @@ export const goalsRepository = {
       `SELECT *,
               GREATEST(0, DATEDIFF(deadline, NOW())) AS days_left,
               ROUND((current_amount / NULLIF(target_amount, 0)) * 100) AS progress_percent,
-              target_amount - current_amount AS remaining_amount
+              target_amount - current_amount AS remaining_amount,
+              (SELECT COUNT(DISTINCT LOWER(TRIM(contributor_name))) FROM transactions WHERE goal_id = goals.id AND status = 'successful') AS contributors_count
        FROM goals WHERE id = ? AND user_id = ?`,
       [goalId, userId],
     );

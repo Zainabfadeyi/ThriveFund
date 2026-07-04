@@ -7,6 +7,7 @@ import { reconciliationRepository } from './reconciliation.repository';
 import { virtualAccountsRepository } from '../virtual-accounts/virtual-accounts.repository';
 import { transactionsRepository } from '../transactions/transactions.repository';
 import { goalsRepository } from '../goals/goals.repository';
+import { contributorsRepository } from '../contributors/contributors.repository';
 import { notificationsRepository } from '../notifications/notifications.repository';
 import { webhooksRepository } from '../webhooks/webhooks.repository';
 import { sendEmail, sendPaymentReceivedEmail, campaignCompletedEmail, paymentMismatchEmail } from '../../lib/email';
@@ -30,6 +31,15 @@ interface PaymentRecord {
 }
 
 type PaymentMatchType = 'exact' | 'under' | 'over';
+
+function normalizedPayerName(name: string): string {
+  return name.trim().replace(/\s+/g, ' ');
+}
+
+function shouldAutoCreateContributor(name: string): boolean {
+  const normalized = normalizedPayerName(name).toLowerCase();
+  return Boolean(normalized) && normalized !== 'anonymous';
+}
 
 function classifyPayment(amount: number, currentAmount: number, targetAmount: number): {
   matchType: PaymentMatchType;
@@ -79,6 +89,20 @@ export const reconciliationService = {
       : classification.creditAmount <= 0 && classification.excessAmount > 0
         ? TransactionStatus.PendingReview
         : TransactionStatus.Successful;
+
+    if (txnStatus === TransactionStatus.Successful && shouldAutoCreateContributor(payment.payer_name)) {
+      const contributorName = normalizedPayerName(payment.payer_name);
+      const existingContributor = await contributorsRepository.findByGoalAndNormalizedName(goalId, contributorName);
+      if (!existingContributor) {
+        await contributorsRepository.insertAutoDetected({
+          id: `ctr_${uuid().replace(/-/g, '').slice(0, 12)}`,
+          goal_id: goalId,
+          organization_id: orgId,
+          name: contributorName,
+          unique_reference: uuid().slice(0, 8).toUpperCase(),
+        });
+      }
+    }
 
     const txnId = `txn_${uuid().replace(/-/g, '').slice(0, 12)}`;
     await transactionsRepository.insert({
