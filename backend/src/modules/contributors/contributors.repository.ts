@@ -83,7 +83,7 @@ export const contributorsRepository = {
     return rows[0] ?? null;
   },
 
-  async insertAutoDetected(data: {
+  async ensureAutoDetected(data: {
     id: string;
     goal_id: string;
     organization_id?: string | null;
@@ -93,11 +93,17 @@ export const contributorsRepository = {
     await execute(
       `INSERT INTO contributors
          (id, goal_id, organization_id, name, email, phone_number, group_label, expected_amount, unique_reference, created_at)
-       VALUES (?, ?, ?, ?, NULL, NULL, 'Auto-detected', NULL, ?, NOW())`,
-      [data.id, data.goal_id, data.organization_id ?? null, data.name, data.unique_reference],
+       SELECT ?, ?, ?, ?, NULL, NULL, 'Auto-detected', NULL, ?, NOW()
+       FROM DUAL
+       WHERE NOT EXISTS (
+         SELECT 1 FROM contributors
+         WHERE goal_id = ? AND LOWER(TRIM(name)) = LOWER(TRIM(?))
+       )`,
+      [
+        data.id, data.goal_id, data.organization_id ?? null, data.name, data.unique_reference,
+        data.goal_id, data.name,
+      ],
     );
-    const rows = await query('SELECT * FROM contributors WHERE id = ?', [data.id]);
-    return rows[0];
   },
 
   async upsertExpectedPayer(data: {

@@ -48,14 +48,23 @@ test('reconciliationService creates transaction, increments goal, and keeps orga
     goal_id: 'goal_123',
     organization_id: 'org_123',
   });
+  transactionsRepository.findByProviderReference = async () => null;
   transactionsRepository.insert = async (data: Record<string, unknown>) => {
     transactions.push(data);
     return { id: data.id, ...data };
   };
-  contributorsRepository.findByGoalAndNormalizedName = async () => null;
-  contributorsRepository.insertAutoDetected = async (data: Record<string, unknown>) => {
+  contributorsRepository.ensureAutoDetected = async (data: Record<string, unknown>) => {
     contributors.push(data);
-    return { id: data.id, ...data };
+  };
+  goalsRepository.incrementAmountReturning = async (goalId: string, amount: number) => {
+    increments.push({ goalId, amount });
+    return {
+      id: goalId,
+      current_amount: 8000,
+      target_amount: 10000,
+      status: 'active',
+      user_id: 'usr_123',
+    };
   };
   goalsRepository.incrementAmount = async (goalId: string, amount: number) => {
     increments.push({ goalId, amount });
@@ -119,17 +128,18 @@ test('reconciliationService auto-creates one contributor for repeat successful p
     goal_id: 'goal_123',
     organization_id: 'org_123',
   });
-  contributorsRepository.findByGoalAndNormalizedName = async (_goalId: string, name: string) => (
-    contributors.find((row) => String(row.name).trim().toLowerCase() === name.trim().toLowerCase()) ?? null
-  );
-  contributorsRepository.insertAutoDetected = async (data: Record<string, unknown>) => {
-    contributors.push(data);
-    return { id: data.id, ...data };
+  contributorsRepository.ensureAutoDetected = async (data: Record<string, unknown>) => {
+    const normalized = String(data.name).trim().toLowerCase();
+    if (!contributors.some((row) => String(row.name).trim().toLowerCase() === normalized)) {
+      contributors.push(data);
+    }
   };
+  transactionsRepository.findByProviderReference = async () => null;
   transactionsRepository.insert = async (data: Record<string, unknown>) => {
     transactions.push(data);
     return { id: data.id, ...data };
   };
+  goalsRepository.incrementAmountReturning = async (goalId: string) => ({ id: goalId, current_amount: 8000, status: 'active' });
   goalsRepository.incrementAmount = async (goalId: string) => ({ id: goalId });
   goalsRepository.findCompletionState = async () => ({
     id: 'goal_123',
@@ -175,9 +185,8 @@ test('reconciliationService auto-creates one contributor for repeat successful p
 test('reconciliationService completes campaign and expires account once target is reached', async () => {
   const { reconciliationService } = await import('../src/modules/reconciliation/reconciliation.service');
   const { goalsRepository } = await import('../src/modules/goals/goals.repository');
-  const { virtualAccountsRepository } = await import('../src/modules/virtual-accounts/virtual-accounts.repository');
+  const { collectionLifecycleService } = await import('../src/modules/goals/collection-lifecycle.service');
   const { notificationsRepository } = await import('../src/modules/notifications/notifications.repository');
-  const { NombaProvider } = await import('../src/providers/payment/nomba.provider');
   const audit = await import('../src/lib/audit');
 
   const expired: string[] = [];
@@ -193,23 +202,24 @@ test('reconciliationService completes campaign and expires account once target i
     target_amount: 10000,
     status: 'active',
   });
-  goalsRepository.markCompleted = async (goalId: string, _graceDays?: number | null) => ({
-    id: goalId, status: 'completed', current_amount: 10000,
-  });
-  goalsRepository.clearCollectionExpiry = async () => undefined;
-  virtualAccountsRepository.markInactive = async (id: string) => {
-    inactive.push(id);
-    return { id, status: 'inactive' };
+  collectionLifecycleService.completeAtTarget = async (goalId: string, virtualAccount: Record<string, unknown>) => {
+    expired.push(String(virtualAccount.provider_reference));
+    inactive.push(String(virtualAccount.id));
+    return {
+      updatedGoal: { id: goalId, status: 'completed', current_amount: 10000 },
+      expiryResult: {
+        expiry: { expired: true, providerReference: String(virtualAccount.provider_reference), raw: {} },
+        virtual_account: { id: virtualAccount.id, status: 'inactive' },
+      },
+      graceDays: 0,
+      claimed: true,
+    };
   };
   notificationsRepository.insert = async (data: Record<string, unknown>) => {
     notifications.push(data);
     return { id: data.id, ...data };
   };
   audit.logAudit = async () => undefined;
-  NombaProvider.prototype.expireVirtualAccount = async function expireVirtualAccount(identifier: string) {
-    expired.push(identifier);
-    return { expired: true, providerReference: identifier, raw: {} };
-  };
 
   const result = await reconciliationService.completeCampaignIfTargetReached('goal_123', {
     id: 'va_123',
@@ -273,12 +283,12 @@ test('reconciliationService credits full over-payment amount and flags excess', 
     organization_id: 'org_123',
     provider_reference: 'nomba_va_123',
   });
+  transactionsRepository.findByProviderReference = async () => null;
   transactionsRepository.insert = async (data: Record<string, unknown>) => ({ id: data.id, ...data });
-  contributorsRepository.findByGoalAndNormalizedName = async () => null;
-  contributorsRepository.insertAutoDetected = async (data: Record<string, unknown>) => ({ id: data.id, ...data });
-  goalsRepository.incrementAmount = async (goalId: string, amount: number) => {
+  contributorsRepository.ensureAutoDetected = async () => undefined;
+  goalsRepository.incrementAmountReturning = async (goalId: string, amount: number) => {
     increments.push({ goalId, amount });
-    return { id: goalId };
+    return { id: goalId, current_amount: 300, target_amount: 250, status: 'active' };
   };
   goalsRepository.findCompletionState = async () => ({
     id: 'goal_123',

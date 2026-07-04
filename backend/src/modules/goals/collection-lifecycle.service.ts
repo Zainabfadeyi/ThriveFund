@@ -143,7 +143,10 @@ export const collectionLifecycleService = {
   /** Called when target is reached — completes campaign and optionally schedules grace before VA expiry. */
   async completeAtTarget(goalId: string, virtualAccount: Record<string, unknown>, goal: Record<string, unknown>) {
     const graceDays = getCollectionGraceDays();
-    const updatedGoal = await goalsRepository.markCompleted(goalId, graceDays > 0 ? graceDays : null);
+    const updatedGoal = await goalsRepository.tryClaimTargetCompletion(goalId, graceDays > 0 ? graceDays : null);
+    if (!updatedGoal) {
+      return { updatedGoal: null, expiryResult: null, graceDays, claimed: false };
+    }
 
     let expiryResult: Awaited<ReturnType<typeof expireVirtualAccountRecord>> | null = null;
     if (graceDays === 0) {
@@ -151,7 +154,7 @@ export const collectionLifecycleService = {
       await goalsRepository.clearCollectionExpiry(goalId);
     }
 
-    return { updatedGoal, expiryResult, graceDays };
+    return { updatedGoal, expiryResult, graceDays, claimed: true };
   },
 
   async processDueExpirations() {

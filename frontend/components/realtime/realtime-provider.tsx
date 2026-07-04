@@ -14,6 +14,11 @@ export function RealtimeProvider({ children }: { children: React.ReactNode }) {
   const queryClient = useQueryClient();
   const retryRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const socketRef = useRef<WebSocket | null>(null);
+  const paymentToastRef = useRef<{ count: number; total: number; timer: ReturnType<typeof setTimeout> | null }>({
+    count: 0,
+    total: 0,
+    timer: null,
+  });
 
   useEffect(() => {
     if (loading || !user) return;
@@ -45,7 +50,19 @@ export function RealtimeProvider({ children }: { children: React.ReactNode }) {
 
       if (event.type === 'transaction.created') {
         const amount = Number(event.data.amount ?? 0);
-        toast.success(amount ? `New payment received: ${formatNaira(amount)}` : 'New payment received');
+        const bucket = paymentToastRef.current;
+        bucket.count += 1;
+        bucket.total += amount;
+        if (bucket.timer) clearTimeout(bucket.timer);
+        bucket.timer = setTimeout(() => {
+          const { count, total } = paymentToastRef.current;
+          paymentToastRef.current = { count: 0, total: 0, timer: null };
+          if (count <= 1) {
+            toast.success(total ? `New payment received: ${formatNaira(total)}` : 'New payment received');
+          } else {
+            toast.success(`${count} new payments received · ${formatNaira(total)} total`);
+          }
+        }, 1200);
       }
 
       if (event.type === 'campaign.completed') {
@@ -98,6 +115,7 @@ export function RealtimeProvider({ children }: { children: React.ReactNode }) {
     return () => {
       closedByEffect = true;
       if (retryRef.current) clearTimeout(retryRef.current);
+      if (paymentToastRef.current.timer) clearTimeout(paymentToastRef.current.timer);
       socketRef.current?.close();
     };
   }, [loading, queryClient, user]);

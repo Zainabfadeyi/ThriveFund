@@ -58,7 +58,7 @@ test('collectionLifecycleService completeAtTarget schedules grace without immedi
 
   let markCompletedGrace: number | null | undefined;
   let expireCalled = false;
-  goalsRepository.markCompleted = async (_goalId: string, graceDays?: number | null) => {
+  goalsRepository.tryClaimTargetCompletion = async (_goalId: string, graceDays?: number | null) => {
     markCompletedGrace = graceDays ?? null;
     return { id: 'goal_123', status: 'completed', collection_expires_at: '2099-01-01' };
   };
@@ -75,6 +75,7 @@ test('collectionLifecycleService completeAtTarget schedules grace without immedi
 
   assert.equal(result.graceDays, 7);
   assert.equal(markCompletedGrace, 7);
+  assert.equal(result.claimed, true);
   assert.equal(expireCalled, false);
   assert.equal(result.expiryResult, null);
 });

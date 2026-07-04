@@ -15,6 +15,7 @@ export function setTestEnv() {
   process.env.NOMBA_SUB_ACCOUNT_ID = process.env.NOMBA_SUB_ACCOUNT_ID || 'sub_account_id';
   process.env.NOMBA_VIRTUAL_ACCOUNT_SCOPE = process.env.NOMBA_VIRTUAL_ACCOUNT_SCOPE || 'sub_account';
   process.env.COLLECTION_GRACE_DAYS = process.env.COLLECTION_GRACE_DAYS || '0';
+  process.env.TF_SKIP_GOAL_PAYMENT_LOCK = '1';
 }
 
 export function jsonResponse(body: unknown, init: { status?: number; ok?: boolean } = {}) {

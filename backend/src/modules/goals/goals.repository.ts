@@ -182,6 +182,28 @@ export const goalsRepository = {
     return rows[0] ?? null;
   },
 
+  /** Atomically mark complete only when target is met and campaign is still active. */
+  async tryClaimTargetCompletion(goalId: string, graceDays: number | null = null): Promise<GoalRow | null> {
+    const expiryClause = graceDays != null && graceDays > 0
+      ? ', collection_expires_at = DATE_ADD(NOW(), INTERVAL ? DAY)'
+      : '';
+    const params = graceDays != null && graceDays > 0
+      ? [graceDays, goalId]
+      : [goalId];
+
+    const result = await execute(
+      `UPDATE goals
+       SET status = 'completed', completed_at = COALESCE(completed_at, NOW()), updated_at = NOW()${expiryClause}
+       WHERE id = ?
+         AND status = 'active'
+         AND current_amount >= target_amount`,
+      params,
+    );
+    if (!result.affectedRows) return null;
+    const rows = await query<GoalRow>('SELECT * FROM goals WHERE id = ?', [goalId]);
+    return rows[0] ?? null;
+  },
+
   async markClosedEarly(goalId: string, userId: string): Promise<GoalRow | null> {
     const result = await execute(
       `UPDATE goals
@@ -222,6 +244,15 @@ export const goalsRepository = {
       'UPDATE goals SET current_amount = current_amount + ?, updated_at = NOW() WHERE id = ?',
       [amount, goalId],
     );
+  },
+
+  async incrementAmountReturning(goalId: string, amount: number) {
+    await this.incrementAmount(goalId, amount);
+    const rows = await query<GoalRow>(
+      'SELECT id, current_amount, target_amount, status, slug, user_id, organization_id FROM goals WHERE id = ?',
+      [goalId],
+    );
+    return rows[0] ?? null;
   },
 
   async findCompletionState(goalId: string): Promise<GoalRow | null> {

@@ -54,7 +54,7 @@ export const transactionsRepository = {
 
   async findByProviderReference(providerReference: string) {
     const rows = await query(
-      'SELECT id FROM transactions WHERE provider_reference = ?',
+      'SELECT * FROM transactions WHERE provider_reference = ? LIMIT 1',
       [providerReference],
     );
     return rows[0] ?? null;

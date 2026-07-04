@@ -103,6 +103,7 @@ test('webhooksService stores, verifies, and reconciles payment_success events', 
     matched: true,
     transaction_id: 'txn_123',
     reconciliation_id: 'rec_123',
+    duplicate: undefined,
   });
 });
 

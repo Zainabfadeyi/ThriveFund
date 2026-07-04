@@ -218,8 +218,9 @@ export const webhooksService = {
       return {
         received: true,
         matched: result.matched,
-        transaction_id: result.transaction_id,
-        reconciliation_id: (result.reconciliation as { id?: string })?.id,
+        transaction_id: 'transaction_id' in result ? result.transaction_id : undefined,
+        reconciliation_id: result.reconciliation ? (result.reconciliation as { id?: string }).id : undefined,
+        duplicate: 'duplicate' in result ? result.duplicate : undefined,
       };
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Processing failed';
