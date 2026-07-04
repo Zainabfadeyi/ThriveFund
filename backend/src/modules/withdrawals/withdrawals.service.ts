@@ -254,12 +254,13 @@ export const withdrawalsService = {
       const details = (err as { details?: Record<string, unknown> }).details;
       const providerReference = extractProviderReference(details);
       const providerCode = typeof details?.providerCode === 'string' ? details.providerCode : undefined;
-      const likelySubmitted = Boolean(providerReference) || providerCode === '201';
+      const merchantTxRef = merchantTxRefFromWithdrawalId(withdrawalId);
+      const likelySubmitted = Boolean(providerReference) || providerCode === '201' || !isDefinitiveTransferFailure(err);
 
       if (likelySubmitted) {
         const processingWithdrawal = await withdrawalsRepository.markProcessing(
           withdrawalId,
-          providerReference ?? merchantTxRefFromWithdrawalId(withdrawalId),
+          providerReference ?? merchantTxRef,
         );
         return {
           withdrawal: processingWithdrawal ?? withdrawal,
@@ -269,8 +270,7 @@ export const withdrawalsService = {
       }
 
       const reason = humanizeTransferError(err, nombaBalance, amount, feeReserve);
-      const failed = await withdrawalsRepository.markFailed(withdrawalId, reason, providerReference);
-      await this.emailOwner(owner?.email, 'failed', goal.title as string, amount, account, reason);
+      const { row: failed } = await withdrawalsRepository.markFailed(withdrawalId, reason, providerReference);
       await logAudit({
         action: AuditAction.WithdrawalFailed,
         actor_id: userId,
@@ -302,7 +302,12 @@ export const withdrawalsService = {
     }
 
     const updated = transfer.status === 'failed'
-      ? await withdrawalsRepository.markFailed(withdrawalId, 'Provider returned failed status', transfer.providerReference, transfer.fee)
+      ? (await withdrawalsRepository.markFailed(
+        withdrawalId,
+        'Provider returned failed status',
+        transfer.providerReference,
+        transfer.fee,
+      )).row
       : transfer.status === 'successful'
         ? await withdrawalsRepository.markSuccessful(withdrawalId, transfer.providerReference, transfer.fee)
         : await withdrawalsRepository.markProcessing(withdrawalId, transfer.providerReference, transfer.fee);
@@ -358,7 +363,8 @@ export const withdrawalsService = {
 
     const owner = await goalsRepository.findOwnerByGoalId(withdrawal.goal_id as string);
     const successEvents = ['payout_success', 'payout.success', 'transfer_success'];
-    const failureEvents = ['payout_failed', 'payout.failed', 'payout_refund', 'transfer_failed'];
+    const failureEvents = ['payout_failed', 'payout.failed', 'transfer_failed'];
+    const previousStatus = withdrawal.status as string;
 
     if (successEvents.includes(input.event)) {
       const updated = await this.applyTransferResult({
@@ -380,17 +386,17 @@ export const withdrawalsService = {
     }
 
     if (failureEvents.includes(input.event)) {
-      if ((withdrawal.status as string) === 'successful' || (withdrawal.status as string) === 'failed') {
+      if (previousStatus === 'successful' || previousStatus === 'failed') {
         return { matched: true as const, duplicate: true as const, withdrawal };
       }
 
-      const updated = await withdrawalsRepository.markFailed(
+      const { row: updated, transitioned } = await withdrawalsRepository.markFailed(
         withdrawal.id as string,
         'Provider reported payout failure',
         input.providerReference ?? (withdrawal.provider_reference as string | undefined),
         input.fee,
       );
-      if ((updated?.status as string | undefined) === 'failed') {
+      if (transitioned && updated) {
         await this.emailOwner(
           owner?.email,
           'failed',
@@ -400,7 +406,7 @@ export const withdrawalsService = {
           'Provider reported payout failure',
         );
       }
-      return { matched: true as const, withdrawal: updated };
+      return { matched: true as const, withdrawal: updated ?? withdrawal };
     }
 
     return { matched: false as const };
@@ -458,6 +464,15 @@ function buildWithdrawalCapMessage(input: {
   }
 
   return `The settled payout balance is ${formatNaira(nombaBalance)}.${pendingNote} A ${formatNaira(amount)} payout needs ${formatNaira(required)} available, including the ${formatNaira(feeReserve)} transfer fee. Maximum you can withdraw now is ${formatNaira(maxWithdrawable)}.`;
+}
+
+function isDefinitiveTransferFailure(err: unknown): boolean {
+  const msg = err instanceof Error ? err.message : String(err);
+  if (/INSUFFICIENT_BALANCE/i.test(msg)) return true;
+  if (/fetch failed|network|timeout|ECONNRESET|ETIMEDOUT|socket hang up/i.test(msg)) return false;
+  const code = (err as { details?: { providerCode?: string } }).details?.providerCode;
+  if (code === '201') return false;
+  return false;
 }
 
 function humanizeTransferError(

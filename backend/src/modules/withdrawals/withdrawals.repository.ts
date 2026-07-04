@@ -111,13 +111,16 @@ export const withdrawalsRepository = {
   },
 
   async markFailed(id: string, reason: string, providerReference?: string, fee?: number) {
-    await execute(
+    const result = await execute(
       `UPDATE withdrawals
-       SET status = 'failed', failure_reason = ?, provider_reference = ?, fee = ?, processed_at = NOW()
-       WHERE id = ? AND status != 'successful'`,
+       SET status = 'failed', failure_reason = ?, provider_reference = COALESCE(?, provider_reference), fee = ?, processed_at = NOW()
+       WHERE id = ? AND status IN ('pending', 'processing')`,
       [reason, providerReference ?? null, fee ?? null, id],
     );
-    return this.findById(id);
+    return {
+      row: await this.findById(id),
+      transitioned: result.affectedRows > 0,
+    };
   },
 
   async findById(id: string) {
