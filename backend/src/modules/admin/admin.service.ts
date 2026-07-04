@@ -45,7 +45,10 @@ export const adminService = {
     const payload = typeof event.payload === 'string' ? JSON.parse(event.payload) : event.payload;
     const signature = '';
     const rawBody = typeof event.payload === 'string' ? event.payload : JSON.stringify(event.payload);
-    return webhooksService.processNomba(rawBody, signature, payload, undefined, { skipSignature: true });
+    return webhooksService.processNomba(rawBody, signature, payload, undefined, {
+      skipSignature: true,
+      retry: true,
+    });
   },
 
   async listUsers(query: { page?: number; per_page?: number }) {

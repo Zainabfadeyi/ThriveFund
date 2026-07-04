@@ -117,7 +117,7 @@ export const webhooksService = {
     signature: string,
     payload: NombaPayload,
     timestamp?: string,
-    options: { skipSignature?: boolean } = {},
+    options: { skipSignature?: boolean; retry?: boolean } = {},
   ) {
     const provider = getPaymentProvider();
 
@@ -131,7 +131,7 @@ export const webhooksService = {
     }
 
     const requestId = stringFrom(payload.requestId, payload.request_id);
-    if (requestId) {
+    if (!options.retry && requestId) {
       const existingByRequest = await webhooksRepository.findByRequestId(requestId);
       if (existingByRequest) {
         return { received: true, duplicate: true, reason: 'request_id' };
@@ -199,10 +199,6 @@ export const webhooksService = {
         providerPayload,
       );
 
-      if (duplicate) {
-        return { received: true, duplicate: true };
-      }
-
       const result = await reconciliationService.reconcilePayment({
         id: payment.id as string,
         webhook_event_id: event.id as string,
@@ -220,7 +216,7 @@ export const webhooksService = {
         matched: result.matched,
         transaction_id: 'transaction_id' in result ? result.transaction_id : undefined,
         reconciliation_id: result.reconciliation ? (result.reconciliation as { id?: string }).id : undefined,
-        duplicate: 'duplicate' in result ? result.duplicate : undefined,
+        duplicate: duplicate || ('duplicate' in result ? result.duplicate : undefined),
       };
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Processing failed';
