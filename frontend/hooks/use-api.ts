@@ -513,6 +513,17 @@ export function useAdminWebhooks(params?: { processed?: boolean; event_type?: st
   });
 }
 
+export function useRetryAdminWebhook() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => adminApi.retryWebhook(id),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['admin-webhooks'] });
+      qc.invalidateQueries({ queryKey: queryKeys.adminOverview });
+    },
+  });
+}
+
 export function useAdminReconciliation(params?: { status?: string; page?: number }) {
   return useQuery({
     queryKey: queryKeys.adminReconciliation(params),

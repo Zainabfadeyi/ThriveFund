@@ -222,6 +222,11 @@ export const adminApi = {
     apiRequest<AdminWithdrawal[]>('/admin/withdrawals', { params }),
   webhookEvents: (params?: { processed?: boolean; event_type?: string; page?: number; per_page?: number }) =>
     apiRequest<unknown[]>('/admin/webhook-events', { params }),
+  retryWebhook: (id: string) =>
+    apiRequest<{ received: boolean; matched?: boolean; duplicate?: boolean; transaction_id?: string; reason?: string }>(
+      `/admin/webhook-events/${id}/retry`,
+      { method: 'POST' },
+    ),
   reconciliation: (params?: { status?: string; page?: number; per_page?: number }) =>
     apiRequest<ReconciliationRecord[]>('/admin/reconciliation', { params }),
   users: (params?: { page?: number; per_page?: number }) => apiRequest<AdminUser[]>('/admin/users', { params }),

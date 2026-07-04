@@ -75,7 +75,7 @@ export const webhooksRepository = {
     const where = conditions.length ? `WHERE ${conditions.join(' AND ')}` : '';
 
     return query(
-      `SELECT id, event_type, provider_reference, status, processed, processed_at, received_at
+      `SELECT id, event_type, provider_reference, status, processed, processed_at, received_at, error_message
        FROM webhook_events ${where}
        ORDER BY received_at DESC LIMIT ? OFFSET ?`,
       [...values, filters.perPage, (filters.page - 1) * filters.perPage],
