@@ -67,7 +67,7 @@ export function RealtimeProvider({ children }: { children: React.ReactNode }) {
 
       if (event.type === 'campaign.completed') {
         void queryClient.invalidateQueries({ queryKey: ['notifications'], refetchType: 'active' });
-        toast.success('Campaign target reached. Collection account is now inactive.');
+        toast.success('Campaign target reached. Withdraw funds when you are ready.');
       }
 
       if (event.type === 'webhook.failed' && user.role === 'admin') {

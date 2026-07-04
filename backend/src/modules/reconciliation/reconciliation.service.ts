@@ -15,7 +15,6 @@ import { env } from '../../config/env';
 import { execute } from '../../config/database';
 import { broadcastRealtime } from '../../lib/realtime';
 import { withGoalPaymentLock } from '../../lib/goal-lock';
-import { withdrawalsService } from '../withdrawals/withdrawals.service';
 import { collectionLifecycleService } from '../goals/collection-lifecycle.service';
 import type { ResolveReconciliationDto } from './reconciliation.validators';
 
@@ -298,7 +297,7 @@ export const reconciliationService = {
       user_id: goal.user_id as string,
       type: 'campaign_completed',
       title: 'Campaign target reached',
-      body: `${goal.title as string} reached its target${currentAmount > targetAmount ? ` with ₦${(currentAmount - targetAmount).toLocaleString()} excess` : ''}.${graceNote}`,
+      body: `${goal.title as string} reached its target${currentAmount > targetAmount ? ` with ₦${(currentAmount - targetAmount).toLocaleString()} excess` : ''}.${graceNote} Withdraw funds from your campaign dashboard when you are ready.`,
     });
 
     if (goal.email) {
@@ -341,8 +340,6 @@ export const reconciliationService = {
         collection_grace_days: graceDays,
       },
     });
-
-    await withdrawalsService.autoPayoutForCompletedGoal(goal.user_id as string, goalId).catch(() => undefined);
 
     return { completed: true, goal: updatedGoal, expiry, grace_days: graceDays };
   },

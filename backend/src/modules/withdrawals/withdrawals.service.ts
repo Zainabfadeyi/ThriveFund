@@ -329,38 +329,6 @@ export const withdrawalsService = {
     return updated;
   },
 
-  async autoPayoutForCompletedGoal(userId: string, goalId: string) {
-    const account = await payoutAccountsRepository.findDefaultForUser(userId);
-    if (!account) {
-      await logAudit({
-        action: AuditAction.AutoPayoutInitiated,
-        actor_id: userId,
-        resource_type: 'goal',
-        resource_id: goalId,
-        metadata: { skipped: true, reason: 'no_default_payout_account' },
-      });
-      return null;
-    }
-
-    const result = await this.createForGoal(userId, goalId, {
-      payout_account_id: account.id as string,
-      narration: 'ThriveFund auto-payout on campaign completion',
-    });
-
-    await logAudit({
-      action: AuditAction.AutoPayoutInitiated,
-      actor_id: userId,
-      resource_type: 'goal',
-      resource_id: goalId,
-      metadata: {
-        withdrawal_id: (result.withdrawal as { id?: string })?.id,
-        amount: (result.withdrawal as { amount?: number })?.amount,
-      },
-    });
-
-    return result;
-  },
-
   async reconcileFromWebhook(input: {
     event: string;
     merchantTxRef?: string;

@@ -202,7 +202,7 @@ export function campaignCompletedEmail(goalTitle: string, amount: number, dashbo
           ['Collected', money(amount)],
           ['Collection status', 'Completed / inactive'],
         ])}
-        <p>The virtual account has been expired for new collections. Manual close-out remains under your control.</p>
+        <p>The virtual account has been expired for new collections. Withdraw your collected funds from the campaign dashboard when you are ready.</p>
         ${button('Open Campaign', dashboardLink)}
       `,
     ),
