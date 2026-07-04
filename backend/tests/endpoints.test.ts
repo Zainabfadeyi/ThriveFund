@@ -71,6 +71,7 @@ const endpoints: EndpointCase[] = [
 
   { method: 'POST', path: '/api/v1/goals', auth: 'user', body: { title: 'School Fees', target_amount: 50000, category: 'education', deadline: '2026-12-31' } },
   { method: 'GET', path: '/api/v1/goals', auth: 'user' },
+  { method: 'GET', path: '/api/v1/goals/goal_123/overview', auth: 'user' },
   { method: 'GET', path: '/api/v1/goals/goal_123', auth: 'user' },
   { method: 'PATCH', path: '/api/v1/goals/goal_123', auth: 'user', body: { title: 'Updated Goal' } },
   { method: 'DELETE', path: '/api/v1/goals/goal_123', auth: 'user' },
@@ -114,6 +115,7 @@ const endpoints: EndpointCase[] = [
   { method: 'GET', path: '/api/v1/reports/reconciliation', auth: 'user' },
 
   { method: 'GET', path: '/api/v1/dashboard/overview', auth: 'user' },
+  { method: 'GET', path: '/api/v1/dashboard/bootstrap', auth: 'user' },
   { method: 'GET', path: '/api/v1/dashboard/monthly-contributions', auth: 'user' },
   { method: 'GET', path: '/api/v1/dashboard/category-breakdown', auth: 'user' },
   { method: 'GET', path: '/api/v1/dashboard/top-contributors', auth: 'user' },

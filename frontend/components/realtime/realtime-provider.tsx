@@ -40,7 +40,7 @@ export function RealtimeProvider({ children }: { children: React.ReactNode }) {
         event.type === 'campaign.balance_updated' ||
         event.type === 'campaign.completed'
       ) {
-        invalidateCampaignQueries(queryClient, goalId);
+        invalidateCampaignQueries(queryClient, goalId, balancePayload.slug ?? undefined);
       }
 
       if (event.type === 'transaction.created') {

@@ -43,6 +43,14 @@ export default function PublicCampaignClient() {
   }
 
   const progress = Number(campaign.progress_percent ?? 0);
+  const paymentDetails = va
+    ? [
+      `Campaign: ${campaign.title}`,
+      `Account number: ${va.account_number}`,
+      `Bank: ${va.bank_name}`,
+      `Account name: ${va.account_name}`,
+    ].join('\n')
+    : '';
 
   return (
     <div className="min-h-screen bg-[#F8FAFC]">
@@ -53,8 +61,28 @@ export default function PublicCampaignClient() {
         </div>
       </header>
       <main className="mx-auto max-w-3xl px-6 py-10">
-        <h1 className="mb-4 text-3xl font-bold">{campaign.title}</h1>
-        <p className="mb-8 text-slate-600">{campaign.description}</p>
+        <h1 className="mb-3 text-3xl font-bold">{campaign.title}</h1>
+        <p className="mb-6 text-slate-600">{campaign.description}</p>
+        {va && (
+          <Card className="mb-6 border-primary/30">
+            <CardContent className="p-6">
+              <div className="mb-4 flex items-center gap-2 text-sm font-medium text-primary"><Building2 className="h-4 w-4" /> Pay by bank transfer</div>
+              <div className="rounded-xl border-2 border-dashed border-primary/40 bg-primary/5 p-6 text-center">
+                <p className="text-xs uppercase text-muted-foreground">Account Number</p>
+                <p className="my-2 text-3xl font-bold tracking-wider">{va.account_number}</p>
+                <p className="text-sm">{va.bank_name}</p>
+                <p className="text-sm text-muted-foreground">{va.account_name}</p>
+              </div>
+              <div className="mt-4 flex flex-wrap justify-center gap-2">
+                <PublicCopyButton text={va.account_number} />
+                <PublicCopyButton text={paymentDetails} label="Copy All Details" />
+              </div>
+              <div className="mt-5 rounded-lg bg-white p-4 text-sm text-slate-700">
+                Transfer from your bank app. Your payment will appear automatically here once received.
+              </div>
+            </CardContent>
+          </Card>
+        )}
         <Card className="mb-6">
           <CardContent className="p-6">
             <div className="mb-4 flex justify-between text-sm">
@@ -65,23 +93,7 @@ export default function PublicCampaignClient() {
             <p className="text-sm text-muted-foreground">Target: {formatNaira(Number(campaign.target_amount))}</p>
           </CardContent>
         </Card>
-        {va ? (
-          <Card className="mb-6 border-primary/30">
-            <CardContent className="p-6">
-              <div className="mb-4 flex items-center gap-2 text-sm font-medium text-primary"><Building2 className="h-4 w-4" /> Payment Instructions</div>
-              <div className="rounded-xl border-2 border-dashed border-primary/40 bg-primary/5 p-6 text-center">
-                <p className="text-xs uppercase text-muted-foreground">Account Number</p>
-                <p className="my-2 text-3xl font-bold tracking-wider">{va.account_number}</p>
-                <p className="text-sm">{va.bank_name}</p>
-                <p className="text-sm text-muted-foreground">{va.account_name}</p>
-              </div>
-              <div className="mt-4 flex justify-center"><PublicCopyButton text={va.account_number} /></div>
-              <div className="mt-5 rounded-lg bg-white p-4 text-sm text-slate-700">
-                Transfer to this account from your bank app. Your payment will be matched automatically once received.
-              </div>
-            </CardContent>
-          </Card>
-        ) : (
+        {!va && (
           <Card className="mb-6"><CardContent className="p-6 text-sm text-muted-foreground">Virtual account not yet assigned for this campaign.</CardContent></Card>
         )}
         <PaymentRadar payments={campaign.recent_payments} />

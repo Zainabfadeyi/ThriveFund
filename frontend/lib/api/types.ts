@@ -153,6 +153,19 @@ export interface Withdrawal {
   processed_at?: string | null;
 }
 
+export interface WithdrawalAvailability {
+  campaign_collected: number;
+  campaign_reserved: number;
+  campaign_available: number;
+  nomba_balance: number | null;
+  transfer_fee_reserve: number;
+  max_withdrawable: number;
+  nomba_balance_available?: boolean;
+  settlement_lag?: boolean;
+  pending_wallet_commitment?: number;
+  balance_error?: string | null;
+}
+
 export interface Transaction {
   id: string;
   goal_id: string;
@@ -213,6 +226,27 @@ export interface DashboardOverview {
   this_month_amount: number;
   recent_transactions: Transaction[];
   recent_goals: Goal[];
+}
+
+export interface DashboardBootstrap {
+  overview: DashboardOverview;
+  reconciliation: ReconciliationOverview;
+  monthly_contributions: MonthlyContribution[];
+  goals: Goal[];
+  goals_meta: PaginationMeta;
+  payout_accounts: PayoutAccount[];
+}
+
+export interface GoalOverview {
+  goal: Goal;
+  virtual_account: VirtualAccount | null;
+  transactions: Transaction[];
+  transactions_meta: PaginationMeta;
+  contributors: Contributor[];
+  share: ShareLink;
+  payout_accounts: PayoutAccount[];
+  withdrawals: Withdrawal[];
+  withdrawal_availability: WithdrawalAvailability;
 }
 
 export interface FinancialSummary {

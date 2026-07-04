@@ -14,6 +14,9 @@ import { goalsRepository } from './goals.repository';
 import { transactionsRepository } from '../transactions/transactions.repository';
 import { organizationsRepository } from '../organizations/organizations.repository';
 import { virtualAccountsRepository } from '../virtual-accounts/virtual-accounts.repository';
+import { contributorsRepository } from '../contributors/contributors.repository';
+import { payoutAccountsRepository } from '../payout-accounts/payout-accounts.repository';
+import { withdrawalsService } from '../withdrawals/withdrawals.service';
 import type { CreateGoalInput, UpdateGoalInput, CloseOutGoalInput } from './goals.schema';
 import { enrichGoalWithPayoutFee } from '../../lib/payout-fees';
 import { slugifyTitle, slugWithSuffix } from '../../lib/slugify';
@@ -63,6 +66,43 @@ export const goalsService = {
     const goal = await goalsRepository.findById(goalId, userId);
     if (!goal) throw Errors.notFound('Goal');
     return enrichGoalWithPayoutFee(goal);
+  },
+
+  async overview(userId: string, goalId: string) {
+    const goal = await this.getById(userId, goalId);
+    const [virtualAccount, transactions, contributors, share, payoutAccounts, withdrawals, withdrawalAvailability] =
+      await Promise.all([
+        virtualAccountsRepository.findByGoalAndUser(goalId, userId),
+        transactionsRepository.findAll(userId, { goal_id: goalId, page: 1, perPage: 25 }),
+        contributorsRepository.findByGoal(goalId),
+        this.getShareLink(userId, goalId),
+        payoutAccountsRepository.findByUser(userId),
+        withdrawalsService.listByGoal(userId, goalId),
+        withdrawalsService.getAvailability(userId, goalId).catch((err) => ({
+          campaign_collected: Number(goal.current_amount ?? 0),
+          campaign_reserved: 0,
+          campaign_available: Number(goal.current_amount ?? 0),
+          nomba_balance: null,
+          transfer_fee_reserve: goal.payout_fee_ngn ?? 50,
+          max_withdrawable: 0,
+          nomba_balance_available: false,
+          settlement_lag: false,
+          pending_wallet_commitment: 0,
+          balance_error: err instanceof Error ? err.message : 'Unable to check payout availability',
+        })),
+      ]);
+
+    return {
+      goal,
+      virtual_account: virtualAccount ?? null,
+      transactions: transactions.rows,
+      transactions_meta: { page: 1, per_page: 25, total: transactions.total },
+      contributors,
+      share,
+      payout_accounts: payoutAccounts,
+      withdrawals,
+      withdrawal_availability: withdrawalAvailability,
+    };
   },
 
   async update(userId: string, goalId: string, body: UpdateGoalInput) {

@@ -15,6 +15,7 @@ goalsRouter.use(requireAuth);
 // Core CRUD
 goalsRouter.post('/', goalsController.create);
 goalsRouter.get('/', goalsController.list);
+goalsRouter.get('/:id/overview', goalsController.overview);
 goalsRouter.get('/:id', goalsController.getById);
 goalsRouter.patch('/:id', goalsController.update);
 goalsRouter.delete('/:id', goalsController.delete);

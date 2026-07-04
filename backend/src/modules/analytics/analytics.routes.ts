@@ -10,6 +10,7 @@ analyticsRouter.use(requireAuth);
 // GET /dashboard/overview  → overview
 // GET /analytics/monthly-contributions → monthlyContributions
 analyticsRouter.get('/overview', analyticsController.overview);
+analyticsRouter.get('/bootstrap', analyticsController.bootstrap);
 analyticsRouter.get('/monthly-contributions', analyticsController.monthlyContributions);
 analyticsRouter.get('/category-breakdown', analyticsController.categoryBreakdown);
 analyticsRouter.get('/top-contributors', analyticsController.topContributors);

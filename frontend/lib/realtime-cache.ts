@@ -53,22 +53,24 @@ export function patchGoalBalanceInCache(
   }
 }
 
-export function invalidateCampaignQueries(queryClient: QueryClient, goalId?: string) {
+export function invalidateCampaignQueries(queryClient: QueryClient, goalId?: string, slug?: string | null) {
   void queryClient.invalidateQueries({ queryKey: queryKeys.dashboard, refetchType: 'active' });
+  void queryClient.invalidateQueries({ queryKey: queryKeys.dashboardBootstrap, refetchType: 'active' });
   void queryClient.invalidateQueries({ queryKey: ['goals'], refetchType: 'active' });
-  void queryClient.invalidateQueries({ queryKey: ['public-goal'], refetchType: 'active' });
-  void queryClient.invalidateQueries({ queryKey: queryKeys.virtualAccounts, refetchType: 'active' });
   void queryClient.invalidateQueries({ queryKey: queryKeys.notificationsUnread, refetchType: 'active' });
   void queryClient.invalidateQueries({ queryKey: ['transactions'], refetchType: 'active' });
   void queryClient.invalidateQueries({ queryKey: queryKeys.reconciliationOverview, refetchType: 'active' });
-  void queryClient.invalidateQueries({ queryKey: ['reconciliation'], refetchType: 'active' });
   void queryClient.invalidateQueries({ queryKey: queryKeys.analyticsGoalPerformance, refetchType: 'active' });
 
   if (!goalId) return;
 
   void queryClient.invalidateQueries({ queryKey: queryKeys.goal(goalId), refetchType: 'active' });
+  void queryClient.invalidateQueries({ queryKey: queryKeys.goalOverview(goalId), refetchType: 'active' });
   void queryClient.invalidateQueries({ queryKey: queryKeys.goalVa(goalId), refetchType: 'active' });
   void queryClient.invalidateQueries({ queryKey: queryKeys.goalTxns(goalId), refetchType: 'active' });
   void queryClient.invalidateQueries({ queryKey: queryKeys.goalContributors(goalId), refetchType: 'active' });
   void queryClient.invalidateQueries({ queryKey: queryKeys.goalContributorsSummary(goalId), refetchType: 'active' });
+  if (slug) {
+    void queryClient.invalidateQueries({ queryKey: queryKeys.publicGoal(slug), refetchType: 'active' });
+  }
 }

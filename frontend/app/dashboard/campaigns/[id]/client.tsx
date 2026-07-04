@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 
 import { usePathname } from 'next/navigation';
 import { Copy, QrCode, Share2, ArrowLeft, Plus, Download, CheckCircle2 } from 'lucide-react';
@@ -18,22 +18,25 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import {
-  useGoal,
-  useGoalVirtualAccount,
+  useGoalOverview,
   useGoalTransactions,
-  useGoalContributors,
-  useGoalShare,
   useCreateVirtualAccount,
   useExportCampaign,
-  usePayoutAccounts,
   useCreateWithdrawal,
-  useGoalWithdrawals,
-  useGoalWithdrawalAvailability,
 } from '@/hooks/use-api';
 import { formatNaira, getInitials, downloadFile } from '@/lib/utils';
 import { getAuthErrorMessage } from '@/contexts/auth-context';
 import { ApiError } from '@/lib/api/client';
 import { useDashboardCampaignId } from '@/hooks/use-dashboard-campaign-id';
+
+function useDebouncedValue<T>(value: T, delayMs: number) {
+  const [debounced, setDebounced] = useState(value);
+  useEffect(() => {
+    const id = setTimeout(() => setDebounced(value), delayMs);
+    return () => clearTimeout(id);
+  }, [value, delayMs]);
+  return debounced;
+}
 
 export default function CampaignDetailClient() {
   const pathnameId = useDashboardCampaignId();
@@ -43,19 +46,16 @@ export default function CampaignDetailClient() {
   const rawId = campaignsIdx >= 0 ? (segments[campaignsIdx + 1] ?? '') : '';
   const fallbackId = rawId && rawId !== '_' && rawId !== 'new' && rawId !== 'campaigns' ? rawId : '';
   const id = pathnameId || fallbackId;
-  const { data: campaign, isLoading, error, refetch } = useGoal(id);
-  const { data: va, refetch: refetchVa } = useGoalVirtualAccount(id);
+  const { data: overview, isLoading, error, refetch } = useGoalOverview(id);
   const [txnStatus, setTxnStatus] = useState('all');
   const [txnSearch, setTxnSearch] = useState('');
-  const { data: txns } = useGoalTransactions(id, {
+  const debouncedTxnSearch = useDebouncedValue(txnSearch.trim(), 350);
+  const usingTxnFilters = txnStatus !== 'all' || Boolean(debouncedTxnSearch);
+  const { data: filteredTxns } = useGoalTransactions(id, {
     status: txnStatus === 'all' ? undefined : txnStatus,
-    q: txnSearch || undefined,
-  });
-  const { data: members } = useGoalContributors(id);
-  const { data: share } = useGoalShare(id);
-  const { data: payoutAccounts } = usePayoutAccounts();
-  const { data: withdrawals } = useGoalWithdrawals(id);
-  const { data: withdrawalAvailability } = useGoalWithdrawalAvailability(id);
+    q: debouncedTxnSearch || undefined,
+    per_page: 25,
+  }, { enabled: usingTxnFilters });
   const createVa = useCreateVirtualAccount();
   const exportCampaign = useExportCampaign();
   const createWithdrawal = useCreateWithdrawal(id);
@@ -63,7 +63,7 @@ export default function CampaignDetailClient() {
   const [selectedPayoutId, setSelectedPayoutId] = useState('');
 
   if (isLoading) return <LoadingState />;
-  if (error && !campaign) {
+  if (error && !overview?.goal) {
     const isMissingGoal = error instanceof ApiError && error.status === 404;
     return (
       <ErrorState
@@ -84,8 +84,16 @@ export default function CampaignDetailClient() {
       />
     );
   }
-  if (!campaign) return null;
+  if (!overview?.goal) return null;
 
+  const campaign = overview.goal;
+  const va = overview.virtual_account;
+  const txns = usingTxnFilters ? filteredTxns : overview.transactions;
+  const members = overview.contributors;
+  const share = overview.share;
+  const payoutAccounts = overview.payout_accounts;
+  const withdrawals = overview.withdrawals;
+  const withdrawalAvailability = overview.withdrawal_availability;
   const progress = Number(campaign.progress_percent ?? 0);
   const publicSlug = campaign.slug ?? campaign.id;
   const publicUrl = share?.public_url ?? (publicSlug ? window.location.origin + '/c/' + publicSlug + '/' : '');
@@ -103,12 +111,14 @@ export default function CampaignDetailClient() {
   const estimatedNetAvailable = campaign.estimated_net_available ?? Math.max(0, Math.min(Number(campaign.current_amount), Number(campaign.target_amount)) - feeReserve);
   const defaultPayout = payoutAccounts?.find((account) => Boolean(account.is_default)) ?? payoutAccounts?.[0];
   const payoutId = selectedPayoutId || defaultPayout?.id || '';
+  const payoutProcessing = (withdrawals ?? []).some((w) => ['pending', 'processing'].includes(w.status));
+  const payoutSuccessful = (withdrawals ?? []).some((w) => w.status === 'successful');
 
   const handleCreateVa = async () => {
     try {
       await createVa.mutateAsync(id);
       toast.success('Virtual account created');
-      refetchVa();
+      refetch();
     } catch (err) {
       toast.error(getAuthErrorMessage(err));
     }
@@ -152,6 +162,44 @@ export default function CampaignDetailClient() {
     }
   };
 
+  const nextAction = !va
+    ? {
+      title: 'Set up collection account',
+      description: 'Generate the dedicated account contributors will pay into.',
+      action: <Button onClick={handleCreateVa} disabled={createVa.isPending}>{createVa.isPending ? 'Generating...' : 'Generate Account'}</Button>,
+    }
+    : !isCompleted
+      ? {
+        title: 'Ready to share',
+        description: 'Copy the public link or account number and send it to contributors.',
+        action: <Button variant="outline" asChild><Link href={'/c/' + publicSlug + '/'}><Share2 className="h-4 w-4" /> Open Public Page</Link></Button>,
+      }
+      : !payoutAccounts?.length
+        ? {
+          title: 'Add payout account',
+          description: 'Save a verified bank account before withdrawing collected funds.',
+          action: <Button asChild><Link href="/dashboard/settings">Open Settings</Link></Button>,
+        }
+        : payoutProcessing
+          ? {
+            title: 'Payout in progress',
+            description: 'We are waiting for final payout confirmation. This page will update automatically.',
+            action: null,
+          }
+          : payoutSuccessful
+            ? {
+              title: 'Collection paid out',
+              description: 'Funds have been sent to your payout account. You can export the final report.',
+              action: <Button variant="outline" onClick={() => handleExport('csv')} disabled={exportCampaign.isPending}><Download className="h-4 w-4" /> Export Report</Button>,
+            }
+            : {
+              title: availableForWithdrawal > 0 ? 'Ready to withdraw' : 'Funds are settling',
+              description: availableForWithdrawal > 0
+                ? 'Withdraw the settled balance to your saved payout account.'
+                : 'Payments are recorded, but the settled payout balance is not ready yet.',
+              action: null,
+            };
+
   return (
     <div>
       <Button variant="ghost" size="sm" className="mb-4" asChild>
@@ -185,6 +233,17 @@ export default function CampaignDetailClient() {
           </div>
         </div>
       )}
+
+      <Card className="mb-6 border-primary/20">
+        <CardContent className="flex flex-col gap-4 p-5 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <p className="text-sm font-semibold text-primary">Next action</p>
+            <h2 className="mt-1 text-lg font-semibold">{nextAction.title}</h2>
+            <p className="mt-1 text-sm text-muted-foreground">{nextAction.description}</p>
+          </div>
+          {nextAction.action}
+        </CardContent>
+      </Card>
 
       <div className="mb-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
         <Card><CardContent className="p-5"><p className="text-sm text-muted-foreground">Collected</p><p className="text-2xl font-bold">{formatNaira(Number(campaign.current_amount))}</p></CardContent></Card>
@@ -361,7 +420,7 @@ export default function CampaignDetailClient() {
               <TableHeader><TableRow><TableHead>Name</TableHead><TableHead>Expected</TableHead><TableHead>Paid</TableHead><TableHead>Status</TableHead></TableRow></TableHeader>
               <TableBody>
                 {!members?.length ? (
-                  <TableRow><TableCell colSpan={4} className="text-center text-muted-foreground">No expected payers yet</TableCell></TableRow>
+                  <TableRow><TableCell colSpan={4} className="text-center text-muted-foreground">No contributors yet</TableCell></TableRow>
                 ) : members.map((m) => (
                   <TableRow key={m.id}>
                     <TableCell>

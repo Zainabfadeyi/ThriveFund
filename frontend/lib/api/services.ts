@@ -9,8 +9,10 @@ import type {
   CategoryBreakdown,
   Contributor,
   DashboardOverview,
+  DashboardBootstrap,
   FinancialSummary,
   Goal,
+  GoalOverview,
   GoalPerformance,
   Invitation,
   MonthlyContribution,
@@ -29,6 +31,7 @@ import type {
   VirtualAccount,
   ContributorSummary,
   Withdrawal,
+  WithdrawalAvailability,
 } from './types';
 
 export const authApi = {
@@ -78,6 +81,7 @@ export const goalsApi = {
   list: (params?: { status?: string; category?: string; q?: string; page?: number; per_page?: number }) =>
     apiRequest<Goal[]>('/goals', { params }),
   get: (id: string) => apiRequest<Goal>(`/goals/${id}`),
+  overview: (id: string) => apiRequest<GoalOverview>(`/goals/${id}/overview`),
   create: (body: { organization_id?: string; title: string; description?: string; target_amount: number; category: string; deadline: string; color?: string }) =>
     apiRequest<Goal>('/goals', { method: 'POST', body: JSON.stringify(body) }),
   update: (id: string, body: Record<string, unknown>) =>
@@ -88,18 +92,7 @@ export const goalsApi = {
     apiRequest<{ withdrawal: Withdrawal; transfer: unknown; available_before_withdrawal: number }>(`/goals/${id}/withdraw`, { method: 'POST', body: JSON.stringify(body) }),
   withdrawals: (id: string) => apiRequest<Withdrawal[]>(`/goals/${id}/withdrawals`),
   withdrawalAvailability: (id: string) =>
-    apiRequest<{
-      campaign_collected: number;
-      campaign_reserved: number;
-      campaign_available: number;
-      nomba_balance: number | null;
-      transfer_fee_reserve: number;
-      max_withdrawable: number;
-      nomba_balance_available?: boolean;
-      settlement_lag?: boolean;
-      pending_wallet_commitment?: number;
-      balance_error?: string | null;
-    }>(`/goals/${id}/withdrawal-availability`),
+    apiRequest<WithdrawalAvailability>(`/goals/${id}/withdrawal-availability`),
   share: (id: string) => apiRequest<ShareLink>(`/goals/${id}/share`),
   exportReport: (id: string, format: 'csv' | 'pdf' = 'csv') =>
     apiRequest<string | Blob>(`/goals/${id}/export`, { params: { format } }),
@@ -177,6 +170,7 @@ export const reportsApi = {
 
 export const dashboardApi = {
   overview: () => apiRequest<DashboardOverview>('/dashboard/overview'),
+  bootstrap: () => apiRequest<DashboardBootstrap>('/dashboard/bootstrap'),
 };
 
 export const analyticsApi = {

@@ -10,6 +10,13 @@ export const analyticsController = {
     } catch (err) { next(err); }
   },
 
+  async bootstrap(req: Request, res: Response, next: NextFunction) {
+    try {
+      const data = await analyticsService.bootstrap(req.user!.sub);
+      ok(res, data);
+    } catch (err) { next(err); }
+  },
+
   async monthlyContributions(req: Request, res: Response, next: NextFunction) {
     try {
       const months = req.query.months ? Number(req.query.months) : 6;

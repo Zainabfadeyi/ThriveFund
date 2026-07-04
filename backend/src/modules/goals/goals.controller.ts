@@ -32,6 +32,13 @@ export const goalsController = {
     } catch (err) { next(err); }
   },
 
+  async overview(req: Request, res: Response, next: NextFunction) {
+    try {
+      const data = await goalsService.overview(req.user!.sub, req.params.id);
+      ok(res, data);
+    } catch (err) { next(err); }
+  },
+
   async update(req: Request, res: Response, next: NextFunction) {
     try {
       const body = updateGoalSchema.parse(req.body);

@@ -25,8 +25,10 @@ import { ApiError } from '@/lib/api/client';
 
 export const queryKeys = {
   dashboard: ['dashboard'] as const,
+  dashboardBootstrap: ['dashboard-bootstrap'] as const,
   goals: (params?: object) => ['goals', params] as const,
   goal: (id: string) => ['goal', id] as const,
+  goalOverview: (id: string) => ['goal-overview', id] as const,
   goalVa: (id: string) => ['goal-va', id] as const,
   goalTxns: (id: string) => ['goal-txns', id] as const,
   goalContributors: (id: string) => ['goal-contributors', id] as const,
@@ -74,6 +76,15 @@ export function useDashboard() {
   });
 }
 
+export function useDashboardBootstrap() {
+  return useQuery({
+    queryKey: queryKeys.dashboardBootstrap,
+    queryFn: async () => (await dashboardApi.bootstrap()).data,
+    refetchInterval: 30_000,
+    staleTime: 20_000,
+  });
+}
+
 export function useGoals(params?: { status?: string; page?: number }) {
   return useQuery({
     queryKey: queryKeys.goals(params),
@@ -94,6 +105,19 @@ export function useGoal(id: string) {
       const status = query.state.data?.status;
       return status && status !== 'completed' ? 10_000 : false;
     },
+  });
+}
+
+export function useGoalOverview(id: string) {
+  return useQuery({
+    queryKey: queryKeys.goalOverview(id),
+    queryFn: async () => (await goalsApi.overview(id)).data,
+    enabled: !!id,
+    refetchInterval: (query) => {
+      const status = query.state.data?.goal.status;
+      return status && status !== 'completed' ? 10_000 : false;
+    },
+    staleTime: 10_000,
   });
 }
 
@@ -118,16 +142,23 @@ export function useCreateVirtualAccount() {
     mutationFn: (goalId: string) => goalsApi.createVirtualAccount(goalId),
     onSuccess: (_, goalId) => {
       qc.invalidateQueries({ queryKey: queryKeys.goalVa(goalId) });
+      qc.invalidateQueries({ queryKey: queryKeys.goalOverview(goalId) });
       qc.invalidateQueries({ queryKey: queryKeys.virtualAccounts });
+      qc.invalidateQueries({ queryKey: queryKeys.dashboardBootstrap });
     },
   });
 }
 
-export function useGoalTransactions(id: string, params?: { status?: string; from?: string; to?: string; q?: string; page?: number }) {
+export function useGoalTransactions(
+  id: string,
+  params?: { status?: string; from?: string; to?: string; q?: string; page?: number; per_page?: number },
+  options?: { enabled?: boolean },
+) {
   return useQuery({
     queryKey: [...queryKeys.goalTxns(id), params] as const,
     queryFn: async () => (await goalsApi.transactions(id, params)).data,
-    enabled: !!id,
+    enabled: !!id && (options?.enabled ?? true),
+    staleTime: 10_000,
   });
 }
 
@@ -165,7 +196,10 @@ export function useCreateGoal() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: goalsApi.create,
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['goals'] }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['goals'] });
+      qc.invalidateQueries({ queryKey: queryKeys.dashboardBootstrap });
+    },
   });
 }
 
@@ -284,9 +318,11 @@ export function useCreateWithdrawal(goalId: string) {
     mutationFn: (body: { payout_account_id?: string; amount?: number; narration?: string }) => goalsApi.withdraw(goalId, body),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: queryKeys.goal(goalId) });
+      qc.invalidateQueries({ queryKey: queryKeys.goalOverview(goalId) });
       qc.invalidateQueries({ queryKey: queryKeys.goalWithdrawals(goalId) });
       qc.invalidateQueries({ queryKey: ['goal-withdrawal-availability', goalId] });
       qc.invalidateQueries({ queryKey: ['withdrawals'] });
+      qc.invalidateQueries({ queryKey: queryKeys.dashboardBootstrap });
     },
   });
 }

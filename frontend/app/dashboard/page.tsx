@@ -11,23 +11,24 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { useDashboard, useReconciliationOverview, useAnalyticsMonthly, useGoals, usePayoutAccounts } from '@/hooks/use-api';
+import { useDashboardBootstrap } from '@/hooks/use-api';
 import { formatNaira } from '@/lib/utils';
 import { getAuthErrorMessage } from '@/contexts/auth-context';
 
 export default function DashboardPage() {
-  const { data: overview, isLoading, error, refetch } = useDashboard();
-  const { data: recon } = useReconciliationOverview();
-  const { data: monthly } = useAnalyticsMonthly();
-  const { data: goals } = useGoals();
-  const { data: payoutAccounts } = usePayoutAccounts();
+  const { data: bootstrap, isLoading, error, refetch } = useDashboardBootstrap();
+  const overview = bootstrap?.overview;
+  const recon = bootstrap?.reconciliation;
+  const monthly = bootstrap?.monthly_contributions;
+  const goals = bootstrap?.goals;
+  const payoutAccounts = bootstrap?.payout_accounts;
 
   if (isLoading) return <LoadingState message="Loading dashboard..." />;
   if (error) return <ErrorState message={getAuthErrorMessage(error)} onRetry={() => refetch()} />;
   if (!overview) return <EmptyState title="No data yet" description="Create a campaign to start collecting payments." />;
 
   const pendingRecon = (recon?.unmatched ?? 0) + (recon?.pending ?? 0);
-  const campaigns = goals?.data ?? overview.recent_goals ?? [];
+  const campaigns = goals ?? overview.recent_goals ?? [];
   const hasCampaigns = Boolean(campaigns.length);
   const hasPayoutAccount = Boolean(payoutAccounts?.length);
   const firstCampaign = campaigns[0];
