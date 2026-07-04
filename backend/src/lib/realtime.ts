@@ -10,7 +10,7 @@ type RealtimeClient = {
 };
 
 type RealtimeEvent = {
-  type: 'campaign.balance_updated' | 'campaign.completed' | 'transaction.created' | 'webhook.failed';
+  type: 'campaign.balance_updated' | 'campaign.completed' | 'transaction.created' | 'virtual_account.expired' | 'webhook.failed';
   user_id?: string;
   organization_id?: string | null;
   goal_id?: string;
