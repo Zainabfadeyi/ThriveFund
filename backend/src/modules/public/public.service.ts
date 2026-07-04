@@ -7,8 +7,11 @@ export const publicService = {
   async getGoalBySlug(slug: string) {
     const goal = await goalsRepository.findBySlug(slug);
     if (!goal) throw Errors.notFound('Goal');
-    const recent_payments = await this.getAnonymousRecentPayments(goal.id as string);
-    return { ...goal, recent_payments };
+    const [recent_payments, virtual_account] = await Promise.all([
+      this.getAnonymousRecentPayments(goal.id as string),
+      virtualAccountsRepository.findBySlug(slug),
+    ]);
+    return { ...goal, recent_payments, virtual_account: virtual_account ?? null };
   },
 
   async getVirtualAccountBySlug(slug: string) {

@@ -47,7 +47,7 @@ export default function DashboardPage() {
             <div className="mb-4 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
               <div>
                 <h2 className="font-semibold text-thrive-dark">Setup flow</h2>
-                <p className="text-sm text-muted-foreground">Create campaign → generate virtual account → share link → withdraw when completed.</p>
+                <p className="text-sm">Create collection → payment account is set up automatically → share link → withdraw when completed.</p>
               </div>
               {!hasCampaigns ? (
                 <Button asChild><Link href="/dashboard/campaigns/new">Create Collection</Link></Button>
@@ -58,7 +58,7 @@ export default function DashboardPage() {
             <div className="grid gap-3 sm:grid-cols-4">
               {[
                 { label: 'Campaign', done: hasCampaigns, icon: Target },
-                { label: 'Virtual account', done: Boolean(firstCampaign?.virtual_account), icon: CreditCard },
+                { label: 'Payment account', done: Boolean(firstCampaign?.virtual_account), icon: CreditCard },
                 { label: 'Share link', done: hasCampaigns, icon: Share2 },
                 { label: 'Payout account', done: hasPayoutAccount, icon: CreditCard },
               ].map(({ label, done, icon: Icon }) => (

@@ -370,4 +370,15 @@ export interface PublicPaymentActivity {
 export interface PublicGoal extends Goal {
   organization_name?: string;
   recent_payments?: PublicPaymentActivity[];
+  virtual_account?: VirtualAccount | null;
+}
+
+export interface CreateGoalResponse extends Goal {
+  virtual_account?: VirtualAccount | null;
+}
+
+export interface InvitationsOverview {
+  share: ShareLink;
+  invitations: Invitation[];
+  summary: ContributorSummary;
 }

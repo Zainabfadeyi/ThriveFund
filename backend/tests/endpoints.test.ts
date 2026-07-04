@@ -87,6 +87,7 @@ const endpoints: EndpointCase[] = [
   { method: 'GET', path: '/api/v1/goals/goal_123/contributors', auth: 'user' },
   { method: 'GET', path: '/api/v1/goals/goal_123/contributors/summary', auth: 'user' },
   { method: 'POST', path: '/api/v1/goals/goal_123/contributors', auth: 'user', body: { name: 'Ada', email: 'ada@example.com' } },
+  { method: 'GET', path: '/api/v1/goals/goal_123/invitations-overview', auth: 'user' },
   { method: 'POST', path: '/api/v1/goals/goal_123/invitations/reminders', auth: 'user' },
   { method: 'POST', path: '/api/v1/goals/goal_123/invitations', auth: 'user', body: { recipients: [{ email: 'ada@example.com' }] } },
   { method: 'GET', path: '/api/v1/goals/goal_123/invitations', auth: 'user' },

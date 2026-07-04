@@ -14,6 +14,7 @@ import { goalsRepository } from './goals.repository';
 import { transactionsRepository } from '../transactions/transactions.repository';
 import { organizationsRepository } from '../organizations/organizations.repository';
 import { virtualAccountsRepository } from '../virtual-accounts/virtual-accounts.repository';
+import { virtualAccountsService } from '../virtual-accounts/virtual-accounts.service';
 import { contributorsRepository } from '../contributors/contributors.repository';
 import { payoutAccountsRepository } from '../payout-accounts/payout-accounts.repository';
 import { withdrawalsService } from '../withdrawals/withdrawals.service';
@@ -41,7 +42,23 @@ export const goalsService = {
     const id = `goal_${uuid().replace(/-/g, '').slice(0, 12)}`;
     const slug = await allocateGoalSlug(body.title, id);
     const goal = await goalsRepository.insert({ id, user_id: userId, slug, ...body });
-    return enrichGoalWithPayoutFee(goal);
+
+    let virtualAccount: Record<string, unknown> | null = null;
+    try {
+      virtualAccount = await virtualAccountsService.createForGoal(userId, id, {});
+    } catch (err) {
+      console.error(JSON.stringify({
+        event: 'auto_virtual_account_create_failed',
+        goal_id: id,
+        user_id: userId,
+        error: err instanceof Error ? err.message : 'unknown',
+      }));
+    }
+
+    return {
+      ...enrichGoalWithPayoutFee(goal),
+      virtual_account: virtualAccount,
+    };
   },
 
   async list(userId: string, query: {

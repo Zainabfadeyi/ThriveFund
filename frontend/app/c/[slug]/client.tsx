@@ -7,7 +7,7 @@ import { LoadingState, ErrorState } from '@/components/shared/query-states';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
-import { usePublicGoal, usePublicVirtualAccount } from '@/hooks/use-api';
+import { usePublicGoal } from '@/hooks/use-api';
 import { usePublicCampaignSlug } from '@/hooks/use-public-campaign-slug';
 import { formatNaira } from '@/lib/utils';
 import { PublicCopyButton } from './copy-button';
@@ -16,7 +16,7 @@ import { PaymentRadar } from '@/components/campaign/payment-radar';
 export default function PublicCampaignClient() {
   const slug = usePublicCampaignSlug();
   const { data: campaign, isLoading, error, refetch } = usePublicGoal(slug);
-  const { data: va } = usePublicVirtualAccount(slug);
+  const va = campaign?.virtual_account ?? null;
 
   if (!slug) {
     return (

@@ -35,6 +35,7 @@ export const queryKeys = {
   goalContributorsSummary: (id: string) => ['goal-contributors-summary', id] as const,
   goalInvitations: (id: string) => ['goal-invitations', id] as const,
   goalShare: (id: string) => ['goal-share', id] as const,
+  goalInvitationsOverview: (id: string) => ['goal-invitations-overview', id] as const,
   organizations: ['organizations'] as const,
   virtualAccounts: ['virtual-accounts'] as const,
   payoutAccounts: ['payout-accounts'] as const,
@@ -115,9 +116,11 @@ export function useGoalOverview(id: string) {
     enabled: !!id,
     refetchInterval: (query) => {
       const goal = query.state.data?.goal;
+      const va = query.state.data?.virtual_account;
       if (!goal) return false;
+      if (!va && goal.status === 'active') return 5_000;
       if (goal.status !== 'completed') return 10_000;
-      const vaActive = query.state.data?.virtual_account?.status === 'active';
+      const vaActive = va?.status === 'active';
       const gracePending = goal.collection_expires_at && new Date(goal.collection_expires_at) > new Date();
       return vaActive || gracePending ? 15_000 : false;
     },
@@ -204,6 +207,15 @@ export function useGoalContributorsSummary(id: string) {
     queryKey: queryKeys.goalContributorsSummary(id),
     queryFn: async () => (await goalsApi.contributorsSummary(id)).data,
     enabled: !!id,
+  });
+}
+
+export function useGoalInvitationsOverview(id: string) {
+  return useQuery({
+    queryKey: queryKeys.goalInvitationsOverview(id),
+    queryFn: async () => (await goalsApi.invitationsOverview(id)).data,
+    enabled: !!id,
+    staleTime: 15_000,
   });
 }
 
@@ -612,6 +624,7 @@ export function useSendInvitations(goalId: string) {
       goalsApi.sendInvitations(goalId, body),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: queryKeys.goalInvitations(goalId) });
+      qc.invalidateQueries({ queryKey: queryKeys.goalInvitationsOverview(goalId) });
       qc.invalidateQueries({ queryKey: queryKeys.goalContributors(goalId) });
       qc.invalidateQueries({ queryKey: queryKeys.goalContributorsSummary(goalId) });
     },
@@ -624,6 +637,7 @@ export function useSendOutstandingReminders(goalId: string) {
     mutationFn: () => goalsApi.sendReminders(goalId),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: queryKeys.goalInvitations(goalId) });
+      qc.invalidateQueries({ queryKey: queryKeys.goalInvitationsOverview(goalId) });
     },
   });
 }

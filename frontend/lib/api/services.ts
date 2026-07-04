@@ -15,6 +15,8 @@ import type {
   GoalOverview,
   GoalPerformance,
   Invitation,
+  InvitationsOverview,
+  CreateGoalResponse,
   MonthlyContribution,
   Notification,
   Organization,
@@ -83,7 +85,7 @@ export const goalsApi = {
   get: (id: string) => apiRequest<Goal>(`/goals/${id}`),
   overview: (id: string) => apiRequest<GoalOverview>(`/goals/${id}/overview`),
   create: (body: { organization_id?: string; title: string; description?: string; target_amount: number; category: string; deadline: string; color?: string }) =>
-    apiRequest<Goal>('/goals', { method: 'POST', body: JSON.stringify(body) }),
+    apiRequest<CreateGoalResponse>('/goals', { method: 'POST', body: JSON.stringify(body) }),
   update: (id: string, body: Record<string, unknown>) =>
     apiRequest<Goal>(`/goals/${id}`, { method: 'PATCH', body: JSON.stringify(body) }),
   delete: (id: string) => apiRequest<void>(`/goals/${id}`, { method: 'DELETE' }),
@@ -115,6 +117,7 @@ export const goalsApi = {
   sendReminders: (id: string) =>
     apiRequest<{ sent_count: number; recipients: Array<{ email: string; name: string; outstanding_amount: number }> }>(`/goals/${id}/invitations/reminders`, { method: 'POST' }),
   listInvitations: (id: string) => apiRequest<Invitation[]>(`/goals/${id}/invitations`),
+  invitationsOverview: (id: string) => apiRequest<InvitationsOverview>(`/goals/${id}/invitations-overview`),
 };
 
 export const payoutAccountsApi = {

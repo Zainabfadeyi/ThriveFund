@@ -41,6 +41,7 @@ goalsRouter.get('/:id/contributors/summary', contributorsController.getSummary);
 goalsRouter.post('/:id/contributors', contributorsController.addToGoal);
 
 // Invitations (nested — delegated to invitations module)
+goalsRouter.get('/:id/invitations-overview', invitationsController.overview);
 goalsRouter.post('/:id/invitations/reminders', invitationsController.remindOutstanding);
 goalsRouter.post('/:id/invitations', invitationsController.sendToGoal);
 goalsRouter.get('/:id/invitations', invitationsController.listByGoal);

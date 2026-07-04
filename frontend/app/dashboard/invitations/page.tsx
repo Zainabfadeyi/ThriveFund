@@ -12,7 +12,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { useGoals, useGoalInvitations, useSendInvitations, useGoalShare, useGoalContributorsSummary, useSendOutstandingReminders } from '@/hooks/use-api';
+import { useGoals, useGoalInvitationsOverview, useSendInvitations, useSendOutstandingReminders } from '@/hooks/use-api';
 import { getAuthErrorMessage } from '@/contexts/auth-context';
 import { formatNaira } from '@/lib/utils';
 
@@ -113,9 +113,10 @@ export default function InvitationsPage() {
   const goals = goalsData?.data ?? [];
   const [goalId, setGoalId] = useState('');
   const selectedGoal = goalId || goals[0]?.id || '';
-  const { data: invitations } = useGoalInvitations(selectedGoal);
-  const { data: share } = useGoalShare(selectedGoal);
-  const { data: summary } = useGoalContributorsSummary(selectedGoal);
+  const { data: invitationsOverview } = useGoalInvitationsOverview(selectedGoal);
+  const invitations = invitationsOverview?.invitations;
+  const share = invitationsOverview?.share;
+  const summary = invitationsOverview?.summary;
   const sendInv = useSendInvitations(selectedGoal);
   const sendReminders = useSendOutstandingReminders(selectedGoal);
   const [email, setEmail] = useState('');

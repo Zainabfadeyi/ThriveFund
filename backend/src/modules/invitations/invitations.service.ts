@@ -104,6 +104,27 @@ export const invitationsService = {
     return invitationsRepository.findByGoal(goalId);
   },
 
+  async overview(userId: string, goalId: string) {
+    const goal = await goalsRepository.findByIdRaw(goalId, userId);
+    if (!goal) throw Errors.notFound('Goal');
+
+    const slug = (goal.slug as string | null) ?? goalId;
+    const [invitations, summary] = await Promise.all([
+      invitationsRepository.findByGoal(goalId),
+      contributorsRepository.outstandingSummary(goalId),
+    ]);
+
+    return {
+      share: {
+        public_url: buildContributionUrl(slug),
+        slug,
+        qr_code_url: `https://api.thrivefund.live/api/v1/goals/${goalId}/qr.png`,
+      },
+      invitations,
+      summary,
+    };
+  },
+
   async accept(token: string) {
     const invitation = await invitationsRepository.findByToken(token);
     if (!invitation) throw Errors.notFound('Invitation');

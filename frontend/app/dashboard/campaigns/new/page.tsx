@@ -11,7 +11,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { LoadingState } from '@/components/shared/query-states';
-import { useCreateGoal, useCreateVirtualAccount, useOrganizations, usePayoutFeeInfo } from '@/hooks/use-api';
+import { useCreateGoal, useOrganizations, usePayoutFeeInfo } from '@/hooks/use-api';
 import { getAuthErrorMessage } from '@/contexts/auth-context';
 import { formatNaira } from '@/lib/utils';
 
@@ -27,7 +27,6 @@ const CATEGORIES = [
 export default function NewCampaignPage() {
   const router = useRouter();
   const createGoal = useCreateGoal();
-  const createVa = useCreateVirtualAccount();
   const { data: organizations, isLoading: organizationsLoading } = useOrganizations();
   const { data: payoutInfo } = usePayoutFeeInfo();
   const transferFee = payoutInfo?.transfer_fee_ngn ?? 50;
@@ -71,11 +70,10 @@ export default function NewCampaignPage() {
         category: form.category,
         deadline: form.deadline,
       });
-      try {
-        await createVa.mutateAsync(res.data.id);
+      if (res.data.virtual_account) {
         toast.success('Collection ready to share');
-      } catch {
-        toast.success('Collection created. Generate the collection account on the next screen.');
+      } else {
+        toast.success('Collection created. Setting up payment account — refresh if it is not ready yet.');
       }
       router.push(`/dashboard/campaigns/${res.data.id}`);
     } catch (err) {
@@ -143,8 +141,8 @@ export default function NewCampaignPage() {
               </div>
             </div>
             <Input type="date" value={form.deadline} onChange={(e) => setForm({ ...form, deadline: e.target.value })} required />
-            <Button type="submit" className="w-full" disabled={createGoal.isPending || createVa.isPending || !form.organization_id}>
-              {createGoal.isPending || createVa.isPending ? 'Preparing collection...' : 'Create Collection'}
+            <Button type="submit" className="w-full" disabled={createGoal.isPending || !form.organization_id}>
+              {createGoal.isPending ? 'Preparing collection...' : 'Create Collection'}
             </Button>
           </form>
         </CardContent>

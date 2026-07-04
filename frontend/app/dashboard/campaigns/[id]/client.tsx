@@ -4,7 +4,7 @@ import Link from 'next/link';
 import { useEffect, useState } from 'react';
 
 import { usePathname } from 'next/navigation';
-import { Copy, QrCode, Share2, ArrowLeft, Plus, Download, CheckCircle2, Lock, Timer } from 'lucide-react';
+import { Copy, Share2, ArrowLeft, Plus, Download, CheckCircle2, Lock, Timer } from 'lucide-react';
 import { QRCodeSVG } from 'qrcode.react';
 import { toast } from 'sonner';
 import { PageHeader } from '@/components/shared/page-header';
@@ -29,6 +29,8 @@ import {
 import { formatNaira, getInitials, downloadFile } from '@/lib/utils';
 import { getAuthErrorMessage } from '@/contexts/auth-context';
 import { ApiError } from '@/lib/api/client';
+import { CollapsibleSection } from '@/components/campaign/collapsible-section';
+import { PayoutStatus, resolvePayoutPhase } from '@/components/campaign/payout-status';
 import { useDashboardCampaignId } from '@/hooks/use-dashboard-campaign-id';
 
 function useDebouncedValue<T>(value: T, delayMs: number) {
@@ -107,23 +109,30 @@ export default function CampaignDetailClient() {
   const collectionExpiresAt = campaign.collection_expires_at ? new Date(campaign.collection_expires_at) : null;
   const gracePending = isCompleted && vaActive && collectionExpiresAt && collectionExpiresAt > new Date();
   const closedEarly = isCompleted && Boolean(campaign.closed_at) && Number(campaign.current_amount) < Number(campaign.target_amount);
-  const reservedWithdrawals = (withdrawals ?? [])
-    .filter((w) => ['pending', 'processing', 'successful'].includes(w.status))
-    .reduce((sum, w) => sum + Number(w.amount), 0);
-  const campaignAvailable = Math.max(0, Number(campaign.current_amount) - reservedWithdrawals);
   const feeReserve = campaign.payout_fee_ngn ?? withdrawalAvailability?.transfer_fee_reserve ?? 50;
   const availableForWithdrawal = withdrawalAvailability?.max_withdrawable ?? 0;
   const nombaBalance = withdrawalAvailability?.nomba_balance;
   const nombaBalanceAvailable = withdrawalAvailability?.nomba_balance_available ?? false;
   const settlementLag = withdrawalAvailability?.settlement_lag ?? false;
-  const netPayoutTarget = campaign.net_payout_target ?? Math.max(0, Number(campaign.target_amount) - feeReserve);
   const excessAmount = campaign.excess_amount ?? Math.max(0, Number(campaign.current_amount) - Number(campaign.target_amount));
-  const estimatedNetAvailable = campaign.estimated_net_available ?? Math.max(0, Number(campaign.current_amount) - feeReserve);
   const progressDisplay = Math.min(100, progress);
+  const campaignAvailable = Math.max(0, Number(campaign.current_amount) - (withdrawals ?? [])
+    .filter((w) => ['pending', 'processing', 'successful'].includes(w.status))
+    .reduce((sum, w) => sum + Number(w.amount), 0));
   const defaultPayout = payoutAccounts?.find((account) => Boolean(account.is_default)) ?? payoutAccounts?.[0];
   const payoutId = selectedPayoutId || defaultPayout?.id || '';
   const payoutProcessing = (withdrawals ?? []).some((w) => ['pending', 'processing'].includes(w.status));
   const payoutSuccessful = (withdrawals ?? []).some((w) => w.status === 'successful');
+  const payoutPhase = resolvePayoutPhase({
+    isCompleted,
+    hasPayoutAccount: Boolean(payoutAccounts?.length),
+    payoutProcessing,
+    payoutSuccessful,
+    availableForWithdrawal,
+    nombaBalanceAvailable,
+    campaignAvailable,
+  });
+  const canWithdrawNow = payoutPhase === 'ready' && Boolean(payoutId) && nombaBalanceAvailable;
 
   const handleCreateVa = async () => {
     try {
@@ -168,6 +177,7 @@ export default function CampaignDetailClient() {
       } else {
         toast.error(res.data.withdrawal.failure_reason ?? 'Withdrawal failed');
       }
+      refetch();
     } catch (err) {
       toast.error(getAuthErrorMessage(err));
     }
@@ -232,9 +242,13 @@ export default function CampaignDetailClient() {
             : {
               title: availableForWithdrawal > 0 ? 'Ready to withdraw' : 'Funds are settling',
               description: availableForWithdrawal > 0
-                ? 'Withdraw the settled balance to your saved payout account.'
+                ? `Withdraw up to ${formatNaira(availableForWithdrawal)} to your saved payout account.`
                 : 'Payments are recorded, but the settled payout balance is not ready yet.',
-              action: null,
+              action: canWithdrawNow ? (
+                <Button onClick={handleWithdraw} disabled={createWithdrawal.isPending}>
+                  Withdraw {formatNaira(availableForWithdrawal)}
+                </Button>
+              ) : null,
             };
 
   return (
@@ -310,34 +324,20 @@ export default function CampaignDetailClient() {
         </CardContent>
       </Card>
 
-      <div className="mb-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
+      <div className="mb-8 grid gap-4 sm:grid-cols-3">
         <Card><CardContent className="p-5"><p className="text-sm text-muted-foreground">Collected</p><p className="text-2xl font-bold">{formatNaira(Number(campaign.current_amount))}</p></CardContent></Card>
         <Card>
           <CardContent className="p-5">
-            <p className="text-sm text-muted-foreground">Collection target</p>
+            <p className="text-sm text-muted-foreground">Target</p>
             <p className="text-2xl font-bold">{formatNaira(Number(campaign.target_amount))}</p>
-            <p className="mt-1 text-xs text-muted-foreground">You receive {formatNaira(netPayoutTarget)} after fees</p>
           </CardContent>
         </Card>
-        <Card>
-          <CardContent className="p-5">
-            <p className="text-sm text-muted-foreground">Est. net available</p>
-            <p className="text-2xl font-bold">{formatNaira(estimatedNetAvailable)}</p>
-            <p className="mt-1 text-xs text-muted-foreground">
-              {excessAmount > 0 ? 'Includes excess · ' : ''}After {formatNaira(feeReserve)} transfer fee
-            </p>
-          </CardContent>
-        </Card>
-        <Card><CardContent className="p-5"><p className="text-sm text-muted-foreground">Contributors</p><p className="text-2xl font-bold">{campaign.contributors_count ?? 0}</p></CardContent></Card>
-        <Card><CardContent className="p-5"><p className="text-sm text-muted-foreground">Progress</p><p className="text-2xl font-bold text-primary">{progress}%</p></CardContent></Card>
+        <Card><CardContent className="p-5"><p className="text-sm text-muted-foreground">Progress</p><p className="text-2xl font-bold text-primary">{progress}%</p><Progress value={progressDisplay} className="mt-3 h-2" /></CardContent></Card>
       </div>
 
-      <div className="mb-8"><Progress value={progressDisplay} className="h-3" /></div>
-
-      <div className="mb-8 grid gap-6 lg:grid-cols-2">
-        <Card>
-          <CardHeader><CardTitle>Virtual Account</CardTitle></CardHeader>
-          <CardContent className="space-y-4">
+      <CollapsibleSection title="Account & share link" defaultOpen={!isCompleted}>
+        <div className="grid gap-6 lg:grid-cols-2">
+          <div className="space-y-4">
             {va ? (
               <>
                 <div className={`rounded-xl border border-dashed p-5 ${isCompleted && !vaActive ? 'border-emerald-300 bg-emerald-50' : gracePending ? 'border-amber-300 bg-amber-50' : isCompleted || va.status === 'inactive' ? 'border-emerald-300 bg-emerald-50' : 'border-primary/30 bg-primary/5'}`}>
@@ -354,14 +354,14 @@ export default function CampaignDetailClient() {
                   ) : null}
                 </div>
                 {!isCompleted && va.status !== 'inactive' && (
-                  <Button variant="outline" onClick={() => { navigator.clipboard.writeText(va.account_number); toast.success('Copied'); }}>
-                    <Copy className="h-4 w-4" /> Copy Number
-                  </Button>
-                )}
-                {!isCompleted && va.status !== 'inactive' && (
-                  <Button variant="outline" className="text-destructive" onClick={handleCloseEarly} disabled={closeGoal.isPending}>
-                    <Lock className="h-4 w-4" /> Close Collection Early
-                  </Button>
+                  <div className="flex flex-wrap gap-2">
+                    <Button variant="outline" onClick={() => { navigator.clipboard.writeText(va.account_number); toast.success('Copied'); }}>
+                      <Copy className="h-4 w-4" /> Copy Number
+                    </Button>
+                    <Button variant="outline" className="text-destructive" onClick={handleCloseEarly} disabled={closeGoal.isPending}>
+                      <Lock className="h-4 w-4" /> Close Early
+                    </Button>
+                  </div>
                 )}
                 {gracePending && (
                   <Button variant="outline" onClick={handleExpireNow} disabled={expireCollection.isPending}>
@@ -371,16 +371,14 @@ export default function CampaignDetailClient() {
               </>
             ) : (
               <>
-                <p className="text-sm text-muted-foreground">No virtual account yet. Generate one so contributors have a dedicated account for this campaign.</p>
-                <Button onClick={handleCreateVa} disabled={createVa.isPending}>Generate Virtual Account</Button>
+                <p className="text-sm text-muted-foreground">Payment account is being set up or needs to be generated.</p>
+                <Button onClick={handleCreateVa} disabled={createVa.isPending}>
+                  {createVa.isPending ? 'Generating...' : 'Generate Account'}
+                </Button>
               </>
             )}
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader><CardTitle className="flex items-center gap-2"><QrCode className="h-5 w-5" /> Share</CardTitle></CardHeader>
-          <CardContent className="flex flex-col items-center gap-4">
+          </div>
+          <div className="flex flex-col items-center gap-4">
             {publicUrl ? (
               <>
                 <QRCodeSVG value={publicUrl} size={160} />
@@ -390,81 +388,53 @@ export default function CampaignDetailClient() {
             ) : (
               <p className="text-sm text-muted-foreground">Share link unavailable</p>
             )}
-          </CardContent>
-        </Card>
-      </div>
+          </div>
+        </div>
+      </CollapsibleSection>
 
-      {isCompleted && (
+      {isCompleted && payoutPhase && (
         <Card className="mb-8">
-          <CardHeader><CardTitle>Withdraw Funds</CardTitle></CardHeader>
-          <CardContent className="space-y-4">
-            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-              <div>
-                <p className="text-sm text-muted-foreground">Collected</p>
-                <p className="text-xl font-bold">{formatNaira(Number(campaign.current_amount))}</p>
-              </div>
-              <div>
-                <p className="text-sm text-muted-foreground">Already Withdrawn / Reserved</p>
-                <p className="text-xl font-bold">{formatNaira(reservedWithdrawals)}</p>
-              </div>
-              <div>
-                <p className="text-sm text-muted-foreground">Available to withdraw</p>
-                <p className="text-xl font-bold text-primary">{formatNaira(availableForWithdrawal)}</p>
-              </div>
-            </div>
-            {!nombaBalanceAvailable && campaignAvailable > 0 && (
-              <div className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">
-                We could not verify the settled payout balance yet, so withdrawals are paused. Collected funds may still be settling — try again in a few hours.
-              </div>
-            )}
-            {nombaBalanceAvailable && settlementLag && (
-              <div className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">
-                Your campaign shows {formatNaira(campaignAvailable)} available, but only {formatNaira(nombaBalance ?? 0)} has settled for payout right now.
-                Payouts are capped at {formatNaira(availableForWithdrawal)} after reserving {formatNaira(feeReserve)} for transfer fees. This usually means payments are still settling.
-              </div>
-            )}
-            {nombaBalanceAvailable && !settlementLag && availableForWithdrawal > 0 && (
-              <div className="rounded-lg border border-blue-200 bg-blue-50 p-3 text-sm text-blue-900">
-                You can withdraw up to {formatNaira(availableForWithdrawal)} now. We reserve {formatNaira(feeReserve)} for the transfer fee so the payout can complete cleanly.
-              </div>
-            )}
-            {availableForWithdrawal <= 0 && nombaBalanceAvailable && campaignAvailable > feeReserve && (
-              <div className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">
-                There is not enough settled balance to pay out from this campaign yet. Wait for incoming transfers to settle, then try again.
-              </div>
-            )}
-            {!payoutAccounts?.length ? (
-              <div className="rounded-lg border bg-muted/40 p-4 text-sm text-muted-foreground">
-                Add a verified payout account in Settings before withdrawing.
-                <Button className="mt-3" variant="outline" size="sm" asChild><Link href="/dashboard/settings">Open Settings</Link></Button>
-              </div>
-            ) : (
-              <div className="grid gap-3 sm:grid-cols-[1fr_180px_auto]">
-                <Select value={payoutId} onValueChange={setSelectedPayoutId}>
-                  <SelectTrigger><SelectValue placeholder="Payout account" /></SelectTrigger>
-                  <SelectContent>
-                    {payoutAccounts.map((account) => (
-                      <SelectItem key={account.id} value={account.id}>
-                        {account.account_name} - {account.bank_name ?? account.bank_code} ({account.account_number.slice(-4)})
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                <Input
-                  type="number"
-                  min="1"
-                  max={availableForWithdrawal}
-                  placeholder="Amount"
-                  value={withdrawalAmount}
-                  onChange={(e) => setWithdrawalAmount(e.target.value)}
-                />
-                <Button onClick={handleWithdraw} disabled={!payoutId || availableForWithdrawal <= 0 || !nombaBalanceAvailable || createWithdrawal.isPending}>
-                  Withdraw
-                </Button>
-              </div>
-            )}
+          <CardHeader><CardTitle>Payout</CardTitle></CardHeader>
+          <CardContent>
+            <PayoutStatus
+              phase={payoutPhase}
+              availableForWithdrawal={availableForWithdrawal}
+              feeReserve={feeReserve}
+              nombaBalance={nombaBalance}
+              campaignAvailable={campaignAvailable}
+              settlementLag={settlementLag}
+              balanceError={withdrawalAvailability?.balance_error}
+            >
+              {payoutPhase === 'ready' && payoutAccounts?.length ? (
+                <div className="grid gap-3 sm:grid-cols-[1fr_180px_auto]">
+                  <Select value={payoutId} onValueChange={setSelectedPayoutId}>
+                    <SelectTrigger><SelectValue placeholder="Payout account" /></SelectTrigger>
+                    <SelectContent>
+                      {payoutAccounts.map((account) => (
+                        <SelectItem key={account.id} value={account.id}>
+                          {account.account_name} - {account.bank_name ?? account.bank_code} ({account.account_number.slice(-4)})
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <Input
+                    type="number"
+                    min="1"
+                    max={availableForWithdrawal}
+                    placeholder={`Up to ${formatNaira(availableForWithdrawal)}`}
+                    value={withdrawalAmount}
+                    onChange={(e) => setWithdrawalAmount(e.target.value)}
+                  />
+                  <Button onClick={handleWithdraw} disabled={!payoutId || !canWithdrawNow || createWithdrawal.isPending}>
+                    Withdraw
+                  </Button>
+                </div>
+              ) : payoutPhase === 'needs_payout_account' ? (
+                <Button variant="outline" size="sm" asChild><Link href="/dashboard/settings">Open Settings</Link></Button>
+              ) : null}
+            </PayoutStatus>
             {!!withdrawals?.length && (
-              <div className="rounded-lg border">
+              <div className="mt-6 rounded-lg border">
                 <Table>
                   <TableHeader><TableRow><TableHead>Amount</TableHead><TableHead>Destination</TableHead><TableHead>Status</TableHead><TableHead>Date</TableHead></TableRow></TableHeader>
                   <TableBody>
@@ -491,10 +461,10 @@ export default function CampaignDetailClient() {
         </Card>
       )}
 
-      <div className="grid gap-6 lg:grid-cols-2">
-        <Card>
-          <CardHeader><CardTitle>Contributors</CardTitle></CardHeader>
-          <CardContent className="p-0">
+      <CollapsibleSection title="Contributors & payments" defaultOpen={false}>
+        <div className="grid gap-6 lg:grid-cols-2">
+          <div>
+            <h3 className="mb-3 text-sm font-semibold">Contributors</h3>
             <Table>
               <TableHeader><TableRow><TableHead>Name</TableHead><TableHead>Expected</TableHead><TableHead>Paid</TableHead><TableHead>Status</TableHead></TableRow></TableHeader>
               <TableBody>
@@ -515,13 +485,10 @@ export default function CampaignDetailClient() {
                 ))}
               </TableBody>
             </Table>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader><CardTitle>Payment Activity</CardTitle></CardHeader>
-          <CardContent className="p-0">
-            <div className="flex flex-col gap-3 border-b p-4 sm:flex-row">
+          </div>
+          <div>
+            <h3 className="mb-3 text-sm font-semibold">Payment activity</h3>
+            <div className="mb-3 flex flex-col gap-3 sm:flex-row">
               <Input placeholder="Search payer or reference" value={txnSearch} onChange={(e) => setTxnSearch(e.target.value)} />
               <Select value={txnStatus} onValueChange={setTxnStatus}>
                 <SelectTrigger className="sm:w-44"><SelectValue /></SelectTrigger>
@@ -547,9 +514,9 @@ export default function CampaignDetailClient() {
                 ))}
               </TableBody>
             </Table>
-          </CardContent>
-        </Card>
-      </div>
+          </div>
+        </div>
+      </CollapsibleSection>
     </div>
   );
 }

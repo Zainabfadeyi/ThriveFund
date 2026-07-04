@@ -21,6 +21,14 @@ export const invitationsController = {
     } catch (err) { next(err); }
   },
 
+  async overview(req: Request, res: Response, next: NextFunction) {
+    try {
+      const goalId = req.params.id ?? req.params.goalId;
+      const data = await invitationsService.overview(req.user!.sub, goalId);
+      ok(res, data);
+    } catch (err) { next(err); }
+  },
+
   async remindOutstanding(req: Request, res: Response, next: NextFunction) {
     try {
       const goalId = req.params.id ?? req.params.goalId;
