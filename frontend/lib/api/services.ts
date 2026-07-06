@@ -140,6 +140,7 @@ export const transactionsApi = {
     apiRequest<Transaction[]>('/transactions', { params }),
   exportCsv: (params?: { goal_id?: string; from?: string; to?: string; status?: string }) =>
     apiRequest<string>('/transactions/export', { params }),
+  receipt: (id: string) => apiRequest<Blob>(`/transactions/${id}/receipt`),
 };
 
 export const withdrawalsApi = {

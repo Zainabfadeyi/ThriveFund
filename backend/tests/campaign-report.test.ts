@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { buildCampaignReport, campaignReportCsv } from '../src/lib/campaign-report';
+import { paymentProofPdf } from '../src/lib/payment-proof';
 
 test('buildCampaignReport maps payment rows with reconciliation fields', () => {
   const report = buildCampaignReport({
@@ -38,4 +39,26 @@ test('buildCampaignReport maps payment rows with reconciliation fields', () => {
   assert.match(campaignReportCsv(report), /payer_name/);
   assert.match(campaignReportCsv(report), /John Doe/);
   assert.match(campaignReportCsv(report), /School Fees/);
+});
+
+test('paymentProofPdf renders a downloadable receipt buffer', async () => {
+  const pdf = await paymentProofPdf({
+    transaction_id: 'txn_1',
+    campaign_title: 'School Fees',
+    organization_name: 'Demo Org',
+    payer_name: 'John Doe',
+    amount: 25000,
+    status: 'successful',
+    paid_at: '2026-06-01T10:00:00.000Z',
+    reference: 'TF-goal-ref-1',
+    provider_reference: 'API-PAY-1',
+    virtual_account_number: '9012345678',
+    bank_name: 'GTBank',
+    account_name: 'THRIVEFUND SCHOOL FEES',
+    reconciliation_status: 'matched',
+    verification_status: 'verified',
+  });
+
+  assert.equal(pdf.subarray(0, 4).toString(), '%PDF');
+  assert.ok(pdf.length > 1000);
 });

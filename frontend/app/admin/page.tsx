@@ -5,17 +5,20 @@ import {
   ArrowLeftRight,
   Building2,
   CreditCard,
+  RefreshCw,
   Target,
   TrendingDown,
   TrendingUp,
   Users,
   Webhook,
 } from 'lucide-react';
+import { toast } from 'sonner';
 import { PageHeader } from '@/components/shared/page-header';
 import { StatCard } from '@/components/shared/stat-card';
 import { LoadingState, ErrorState } from '@/components/shared/query-states';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { useAdminOverview, useAnalyticsMonthly } from '@/hooks/use-api';
+import { Button } from '@/components/ui/button';
+import { useAdminNombaSync, useAdminOverview, useAnalyticsMonthly, useRunNombaSync } from '@/hooks/use-api';
 import { MonthlyChart } from '@/components/charts/monthly-chart';
 import { formatNaira } from '@/lib/utils';
 import { getAuthErrorMessage } from '@/contexts/auth-context';
@@ -33,6 +36,8 @@ const quickLinks = [
 export default function AdminOverviewPage() {
   const { data, isLoading, error, refetch } = useAdminOverview();
   const { data: monthly } = useAnalyticsMonthly();
+  const { data: nombaSync } = useAdminNombaSync();
+  const runSync = useRunNombaSync();
 
   if (isLoading) return <LoadingState />;
   if (error) {
@@ -41,6 +46,18 @@ export default function AdminOverviewPage() {
       : getAuthErrorMessage(error);
     return <ErrorState message={msg} onRetry={() => refetch()} />;
   }
+
+  const latestSync = nombaSync?.latest as Record<string, unknown> | undefined;
+  const latestStatus = String(latestSync?.status ?? 'not run');
+  const latestAt = latestSync?.started_at ? new Date(String(latestSync.started_at)).toLocaleString('en-NG') : 'No sync run yet';
+  const handleRunSync = async () => {
+    try {
+      await runSync.mutateAsync();
+      toast.success('Nomba sync started');
+    } catch (err) {
+      toast.error(getAuthErrorMessage(err));
+    }
+  };
 
   return (
     <div>
@@ -97,6 +114,35 @@ export default function AdminOverviewPage() {
           </Link>
         ))}
       </div>
+
+      <Card className="mb-8 border-primary/20">
+        <CardHeader>
+          <CardTitle>Nomba Recovery Controls</CardTitle>
+        </CardHeader>
+        <CardContent className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+          <div className="grid gap-3 text-sm sm:grid-cols-3">
+            <div>
+              <p className="text-muted-foreground">Latest sync</p>
+              <p className="font-semibold capitalize">{latestStatus}</p>
+            </div>
+            <div>
+              <p className="text-muted-foreground">Started</p>
+              <p className="font-semibold">{latestAt}</p>
+            </div>
+            <div>
+              <p className="text-muted-foreground">Webhook attention</p>
+              <p className="font-semibold">{data?.failed_webhooks_24h ?? 0} failed in 24h</p>
+            </div>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            <Button onClick={handleRunSync} disabled={runSync.isPending}>
+              <RefreshCw className={`h-4 w-4 ${runSync.isPending ? 'animate-spin' : ''}`} /> Sync with Nomba
+            </Button>
+            <Button variant="outline" asChild><Link href="/admin/webhooks">Webhook Health</Link></Button>
+            <Button variant="outline" asChild><Link href="/admin/reconciliation">Retry Reconciliation</Link></Button>
+          </div>
+        </CardContent>
+      </Card>
 
       <Card>
         <CardHeader><CardTitle>Monthly Collection Volume</CardTitle></CardHeader>

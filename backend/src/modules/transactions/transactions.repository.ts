@@ -52,6 +52,36 @@ export const transactionsRepository = {
     return rows[0] ?? null;
   },
 
+  async findReceiptById(txnId: string, userId: string) {
+    const rows = await query(
+      `SELECT
+          t.id AS transaction_id,
+          g.title AS campaign_title,
+          o.name AS organization_name,
+          t.contributor_name AS payer_name,
+          t.amount,
+          t.status,
+          t.paid_at,
+          t.reference,
+          t.provider_reference,
+          va.account_number AS virtual_account_number,
+          va.bank_name,
+          va.account_name,
+          rr.status AS reconciliation_status,
+          p.status AS verification_status
+       FROM transactions t
+       JOIN goals g ON g.id = t.goal_id
+       LEFT JOIN organizations o ON o.id = g.organization_id
+       LEFT JOIN virtual_accounts va ON va.id = t.virtual_account_id
+       LEFT JOIN reconciliation_records rr ON rr.id = t.reconciliation_id
+       LEFT JOIN payments p ON p.id = t.payment_id
+       WHERE t.id = ? AND g.user_id = ?
+       LIMIT 1`,
+      [txnId, userId],
+    );
+    return rows[0] ?? null;
+  },
+
   async findByProviderReference(providerReference: string) {
     const rows = await query(
       'SELECT * FROM transactions WHERE provider_reference = ? LIMIT 1',

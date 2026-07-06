@@ -32,6 +32,8 @@ import { ApiError } from '@/lib/api/client';
 import { CollapsibleSection } from '@/components/campaign/collapsible-section';
 import { PayoutStatus, resolvePayoutPhase } from '@/components/campaign/payout-status';
 import { useDashboardCampaignId } from '@/hooks/use-dashboard-campaign-id';
+import { transactionsApi } from '@/lib/api/services';
+import type { Transaction } from '@/lib/api/types';
 
 function useDebouncedValue<T>(value: T, delayMs: number) {
   const [debounced, setDebounced] = useState(value);
@@ -40,6 +42,25 @@ function useDebouncedValue<T>(value: T, delayMs: number) {
     return () => clearTimeout(id);
   }, [value, delayMs]);
   return debounced;
+}
+
+function PayoutTimeline({ steps }: { steps: Array<{ label: string; done: boolean; detail: string }> }) {
+  return (
+    <div className="mb-5 grid gap-3 sm:grid-cols-4">
+      {steps.map((step) => (
+        <div
+          key={step.label}
+          className={`rounded-lg border p-3 ${step.done ? 'border-emerald-200 bg-emerald-50' : 'border-slate-200 bg-slate-50'}`}
+        >
+          <div className="flex items-center gap-2">
+            <CheckCircle2 className={`h-4 w-4 ${step.done ? 'text-emerald-600' : 'text-slate-300'}`} />
+            <p className="text-sm font-semibold">{step.label}</p>
+          </div>
+          <p className="mt-1 text-xs text-muted-foreground">{step.detail}</p>
+        </div>
+      ))}
+    </div>
+  );
 }
 
 export default function CampaignDetailClient() {
@@ -133,6 +154,29 @@ export default function CampaignDetailClient() {
     campaignAvailable,
   });
   const canWithdrawNow = payoutPhase === 'ready' && Boolean(payoutId) && nombaBalanceAvailable;
+  const payoutRequested = (withdrawals ?? []).some((w) => ['pending', 'processing', 'successful'].includes(w.status));
+  const payoutSteps = [
+    {
+      label: 'Collected',
+      done: Number(campaign.current_amount) > 0,
+      detail: `${formatNaira(Number(campaign.current_amount))} recorded`,
+    },
+    {
+      label: 'Settled',
+      done: nombaBalanceAvailable || payoutRequested || payoutSuccessful,
+      detail: nombaBalanceAvailable ? 'Ready for payout' : 'Waiting for settlement',
+    },
+    {
+      label: 'Payout requested',
+      done: payoutRequested,
+      detail: payoutRequested ? 'Request submitted' : 'Not requested yet',
+    },
+    {
+      label: 'Paid out',
+      done: payoutSuccessful,
+      detail: payoutSuccessful ? 'Sent to bank' : 'Awaiting completion',
+    },
+  ];
 
   const handleCreateVa = async () => {
     try {
@@ -155,6 +199,16 @@ export default function CampaignDetailClient() {
         downloadFile(res.data, filename, format === 'pdf' ? 'application/pdf' : 'text/csv;charset=utf-8');
       }
       toast.success(`${format.toUpperCase()} report downloaded`);
+    } catch (err) {
+      toast.error(getAuthErrorMessage(err));
+    }
+  };
+
+  const handleReceipt = async (txn: Transaction) => {
+    try {
+      const res = await transactionsApi.receipt(txn.id);
+      downloadFile(res.data, `payment-proof-${txn.provider_reference ?? txn.reference ?? txn.id}.pdf`);
+      toast.success('Payment proof downloaded');
     } catch (err) {
       toast.error(getAuthErrorMessage(err));
     }
@@ -396,6 +450,7 @@ export default function CampaignDetailClient() {
         <Card className="mb-8">
           <CardHeader><CardTitle>Payout</CardTitle></CardHeader>
           <CardContent>
+            <PayoutTimeline steps={payoutSteps} />
             <PayoutStatus
               phase={payoutPhase}
               availableForWithdrawal={availableForWithdrawal}
@@ -501,15 +556,24 @@ export default function CampaignDetailClient() {
               </Select>
             </div>
             <Table>
-              <TableHeader><TableRow><TableHead>Payer</TableHead><TableHead>Amount</TableHead><TableHead>Status</TableHead></TableRow></TableHeader>
+              <TableHeader><TableRow><TableHead>Payer</TableHead><TableHead>Amount</TableHead><TableHead>Status</TableHead><TableHead className="text-right">Proof</TableHead></TableRow></TableHeader>
               <TableBody>
                 {!txns?.length ? (
-                  <TableRow><TableCell colSpan={3} className="text-center text-muted-foreground">No payments yet</TableCell></TableRow>
+                  <TableRow><TableCell colSpan={4} className="text-center text-muted-foreground">No payments yet</TableCell></TableRow>
                 ) : txns.map((t) => (
                   <TableRow key={t.id}>
                     <TableCell>{t.contributor_name}</TableCell>
                     <TableCell>{formatNaira(Number(t.amount))}</TableCell>
                     <TableCell><StatusBadge status={t.status} /></TableCell>
+                    <TableCell className="text-right">
+                      {t.status === 'successful' ? (
+                        <Button size="sm" variant="outline" onClick={() => handleReceipt(t)}>
+                          <Download className="h-3.5 w-3.5" /> PDF
+                        </Button>
+                      ) : (
+                        <span className="text-xs text-muted-foreground">-</span>
+                      )}
+                    </TableCell>
                   </TableRow>
                 ))}
               </TableBody>

@@ -25,6 +25,11 @@ export default function AdminWebhooksPage() {
   if (isLoading) return <LoadingState />;
   if (error) return <ErrorState message={getAuthErrorMessage(error)} onRetry={() => refetch()} />;
 
+  const processedCount = (webhooks ?? []).filter((event) => Boolean((event as Record<string, unknown>).processed)).length;
+  const failedCount = (webhooks ?? []).filter((event) => String((event as Record<string, unknown>).status ?? '') === 'failed').length;
+  const pendingCount = (webhooks ?? []).filter((event) => !Boolean((event as Record<string, unknown>).processed)).length;
+  const retryableCount = (webhooks ?? []).filter((event) => canRetryWebhook(event as Record<string, unknown>)).length;
+
   const handleRetry = async (id: string) => {
     setRetryingId(id);
     try {
@@ -49,6 +54,19 @@ export default function AdminWebhooksPage() {
   return (
     <div>
       <PageHeader title="Webhooks" description="Nomba webhook delivery health and processing status" />
+      <div className="mb-6 grid gap-3 sm:grid-cols-4">
+        {[
+          ['Processed', processedCount],
+          ['Failed', failedCount],
+          ['Pending', pendingCount],
+          ['Retryable', retryableCount],
+        ].map(([label, value]) => (
+          <div key={String(label)} className="rounded-lg border bg-white p-4">
+            <p className="text-sm text-muted-foreground">{label}</p>
+            <p className="mt-1 text-2xl font-bold">{String(value)}</p>
+          </div>
+        ))}
+      </div>
       <AdminTableShell title="Webhook Events">
         <Table>
           <TableHeader>

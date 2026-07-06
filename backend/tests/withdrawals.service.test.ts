@@ -128,3 +128,35 @@ test('withdrawalsService emails only once on terminal webhook failure', async ()
 
   assert.equal(failedEmails, 0);
 });
+
+test('withdrawalsService does not downgrade successful payout after failed provider update', async () => {
+  const { withdrawalsService } = await import('../src/modules/withdrawals/withdrawals.service');
+  const { withdrawalsRepository } = await import('../src/modules/withdrawals/withdrawals.repository');
+
+  let markedFailed = false;
+  withdrawalsRepository.findById = async () => ({
+    id: 'wd_success',
+    status: 'successful',
+    provider_reference: 'API-TRANSFER-SUCCESS',
+  });
+  withdrawalsRepository.markFailed = async () => {
+    markedFailed = true;
+    return { row: { id: 'wd_success', status: 'failed' }, transitioned: true };
+  };
+
+  const result = await withdrawalsService.applyTransferResult({
+    withdrawalId: 'wd_success',
+    goalId: 'goal_123',
+    userId: 'usr_123',
+    goalTitle: 'School fees',
+    amount: 5000,
+    account: {},
+    transfer: {
+      status: 'failed',
+      providerReference: 'API-TRANSFER-FAILED',
+    },
+  });
+
+  assert.equal(result?.status, 'successful');
+  assert.equal(markedFailed, false);
+});

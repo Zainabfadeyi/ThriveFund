@@ -43,7 +43,9 @@ export default function PublicCampaignClient() {
   }
 
   const progress = Number(campaign.progress_percent ?? 0);
-  const paymentDetails = va
+  const collectionClosed = campaign.status === 'completed' || va?.status === 'inactive';
+  const showPaymentDetails = Boolean(va && !collectionClosed);
+  const paymentDetails = va && showPaymentDetails
     ? [
       `Campaign: ${campaign.title}`,
       `Account number: ${va.account_number}`,
@@ -63,7 +65,7 @@ export default function PublicCampaignClient() {
       <main className="mx-auto max-w-3xl px-6 py-10">
         <h1 className="mb-3 text-3xl font-bold">{campaign.title}</h1>
         <p className="mb-6 text-slate-600">{campaign.description}</p>
-        {va && (
+        {showPaymentDetails && va && (
           <Card className="mb-6 border-primary/30">
             <CardContent className="p-6">
               <div className="mb-4 flex items-center gap-2 text-sm font-medium text-primary"><Building2 className="h-4 w-4" /> Pay by bank transfer</div>
@@ -83,6 +85,18 @@ export default function PublicCampaignClient() {
             </CardContent>
           </Card>
         )}
+        {collectionClosed && (
+          <Card className="mb-6 border-emerald-200 bg-emerald-50">
+            <CardContent className="p-6">
+              <div className="mb-2 flex items-center gap-2 text-sm font-semibold text-emerald-800">
+                <CheckCircle2 className="h-4 w-4" /> Collection closed
+              </div>
+              <p className="text-sm text-emerald-900">
+                This campaign has reached its collection stage and is no longer accepting new bank transfers.
+              </p>
+            </CardContent>
+          </Card>
+        )}
         <Card className="mb-6">
           <CardContent className="p-6">
             <div className="mb-4 flex justify-between text-sm">
@@ -93,7 +107,7 @@ export default function PublicCampaignClient() {
             <p className="text-sm text-muted-foreground">Target: {formatNaira(Number(campaign.target_amount))}</p>
           </CardContent>
         </Card>
-        {!va && (
+        {!va && !collectionClosed && (
           <Card className="mb-6"><CardContent className="p-6 text-sm text-muted-foreground">Virtual account not yet assigned for this campaign.</CardContent></Card>
         )}
         <PaymentRadar payments={campaign.recent_payments} />

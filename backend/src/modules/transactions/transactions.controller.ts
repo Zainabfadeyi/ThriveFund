@@ -43,6 +43,15 @@ export const transactionsController = {
     } catch (err) { next(err); }
   },
 
+  async receiptPdf(req: Request, res: Response, next: NextFunction) {
+    try {
+      const receipt = await transactionsService.receipt(req.user!.sub, req.params.id);
+      res.setHeader('Content-Type', 'application/pdf');
+      res.setHeader('Content-Disposition', `attachment; filename="${receipt.filename}"`);
+      res.send(receipt.body);
+    } catch (err) { next(err); }
+  },
+
   async exportCsv(req: Request, res: Response, next: NextFunction) {
     try {
       const rows = await transactionsService.export(req.user!.sub, {

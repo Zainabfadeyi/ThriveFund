@@ -61,7 +61,7 @@ function classifyPayment(amount: number, currentAmount: number, targetAmount: nu
 
   return {
     matchType,
-    creditAmount: amount,
+    creditAmount: remaining > 0 ? amount : 0,
     excessAmount,
     remainingBefore: remaining,
   };

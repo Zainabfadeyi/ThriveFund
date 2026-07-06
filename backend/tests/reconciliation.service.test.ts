@@ -332,3 +332,79 @@ test('reconciliationService credits full over-payment amount and flags excess', 
   assert.equal(insertedRec?.status, 'pending');
   assert.match(String(insertedRec?.notes), /excess ₦50/);
 });
+
+test('reconciliationService records payment after completion without over-crediting ledger', async () => {
+  const { reconciliationService } = await import('../src/modules/reconciliation/reconciliation.service');
+  const { virtualAccountsRepository } = await import('../src/modules/virtual-accounts/virtual-accounts.repository');
+  const { reconciliationRepository } = await import('../src/modules/reconciliation/reconciliation.repository');
+  const { transactionsRepository } = await import('../src/modules/transactions/transactions.repository');
+  const { goalsRepository } = await import('../src/modules/goals/goals.repository');
+  const { contributorsRepository } = await import('../src/modules/contributors/contributors.repository');
+  const { notificationsRepository } = await import('../src/modules/notifications/notifications.repository');
+  const { webhooksRepository } = await import('../src/modules/webhooks/webhooks.repository');
+  const audit = await import('../src/lib/audit');
+  const email = await import('../src/lib/email');
+
+  const increments: Array<{ goalId: string; amount: number }> = [];
+  let insertedRec: Record<string, unknown> | null = null;
+  let insertedTxn: Record<string, unknown> | null = null;
+
+  virtualAccountsRepository.findByAccountNumber = async () => ({
+    id: 'va_123',
+    goal_id: 'goal_123',
+    organization_id: 'org_123',
+    provider_reference: 'nomba_va_123',
+  });
+  transactionsRepository.findByProviderReference = async () => null;
+  transactionsRepository.insert = async (data: Record<string, unknown>) => {
+    insertedTxn = { id: data.id, ...data };
+    return insertedTxn;
+  };
+  contributorsRepository.ensureAutoDetected = async () => undefined;
+  goalsRepository.incrementAmountReturning = async (goalId: string, amount: number) => {
+    increments.push({ goalId, amount });
+    return { id: goalId, current_amount: 10000, target_amount: 10000, status: 'completed' };
+  };
+  goalsRepository.findCompletionState = async () => ({
+    id: 'goal_123',
+    user_id: 'usr_123',
+    organization_id: 'org_123',
+    title: 'School fees',
+    current_amount: 10000,
+    target_amount: 10000,
+    status: 'completed',
+    slug: 'school-fees',
+  });
+  goalsRepository.findOwnerByGoalId = async () => ({
+    user_id: 'usr_123',
+    email: 'owner@test.com',
+    title: 'School fees',
+  });
+  reconciliationRepository.insert = async (data: Record<string, unknown>) => {
+    insertedRec = { id: data.id, ...data };
+    return insertedRec;
+  };
+  webhooksRepository.markStatus = async () => ({ id: 'wh_123' });
+  notificationsRepository.insert = async (data: Record<string, unknown>) => ({ id: data.id, ...data });
+  audit.logAudit = async () => undefined;
+  email.sendPaymentReceivedEmail = async () => undefined;
+  email.sendEmail = async () => undefined;
+  email.paymentMismatchEmail = () => ({ subject: 'Over', html: '<p>Over</p>' });
+
+  const result = await reconciliationService.reconcilePayment({
+    id: 'pay_late',
+    provider_reference: 'session_late',
+    account_number: '9391076543',
+    amount: 300,
+    payer_name: 'Ada',
+    reference: 'TFgoal123',
+    status: 'verified',
+  });
+
+  assert.equal(result.matched, true);
+  assert.equal(result.payment_match, 'over');
+  assert.equal(result.excess_amount, 300);
+  assert.equal(insertedTxn?.status, 'successful');
+  assert.equal(insertedRec?.status, 'pending');
+  assert.deepEqual(increments, []);
+});
