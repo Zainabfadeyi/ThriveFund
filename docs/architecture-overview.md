@@ -22,17 +22,6 @@ ThriveFund helps individuals, communities, schools, small businesses, and cooper
 - Dashboard: progress, totals, transactions
 - Admin dashboard: accounts, goals, payments, reconciliation logs
 
-### Nice-to-have
-
-- Email / WhatsApp payment notifications
-- Public contribution page
-- CSV export
-- Role-based access (owner, admin, viewer)
-- Transaction status badges: successful, pending review, failed, duplicate
-
-### Current Exclusions
-
-- Mobile app, complex KYC, full accounting/lending/wallet, multi-currency
 
 ## High-Level Architecture
 
@@ -87,11 +76,3 @@ ThriveFund helps individuals, communities, schools, small businesses, and cooper
 | Hosting | AWS EC2 |
 | API docs | OpenAPI |
 
-## Reconciliation Rules
-
-1. Store every webhook payload in `WebhookEvent` before business logic.
-2. Use provider/transaction reference for **idempotency** (no duplicate transactions).
-3. Validate webhook signature/secret per Nomba integration guide.
-4. Map webhook → `VirtualAccount` via account number, Nomba account ID, or provider reference.
-5. Update goal balance only after transaction is confirmed successful.
-6. Retain failed/unmatched events for admin review.
