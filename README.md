@@ -5,101 +5,208 @@ ThriveFund is a live payment collection and reconciliation platform for Nigerian
 ## Live Project
 
 - App: https://thrivefund.live
-- API health: https://api.thrivefund.live/api/v1/health
-- Submission overview: [DEMO.md](./DEMO.md)
+- API: https://api.thrivefund.live/api/v1/health
+
+---
 
 ## What It Does
 
-- Organizer signup with automatic organization creation.
-- Campaign collections with dedicated Nomba virtual accounts.
-- Public campaign pages with account details, progress, and live payment activity.
+- Organizer signup with automatic organization creation and email verification.
+- Campaign collections with dedicated Nomba virtual accounts per campaign.
+- Public campaign pages with account details, progress bar, and live payment activity.
 - Nomba webhook verification, idempotent reconciliation, and transaction recording.
 - Auto-detected contributors from successful uninvited payer names.
 - Contributor rollups where repeat payments count once as a payer and sum total contribution.
+- Expected-payer tracking with outstanding balance calculation and invitation emails.
 - Campaign CSV/PDF exports and per-payment proof PDFs.
-- Verified payout accounts and payout timeline: Collected -> Settled -> Payout requested -> Paid out.
-- Admin recovery tools for webhook health, reconciliation retry, and Nomba sync.
+- Verified payout accounts with withdrawal timeline: Collected → Settled → Requested → Paid out.
+- Admin recovery tools: webhook health, reconciliation retry, and Nomba sync.
 
-## Nomba Integration
+---
 
-ThriveFund uses Nomba for:
+## Infrastructure & Services
 
-- Dedicated virtual account collections.
-- Payment webhook verification and reconciliation.
-- Bank lookup for payout account verification.
-- Bank transfers from the configured Nomba sub-account to organizer payout accounts.
-- Admin sync/requery flows for production recovery.
+| Layer | Service | Purpose |
+|---|---|---|
+| **Frontend hosting** | Cloudflare Workers (Static Assets) | Serves the Next.js static export globally via CDN |
+| **Backend hosting** | AWS EC2 (Amazon Linux 2023) | Runs the Node.js API server managed by PM2 |
+| **Database** | AWS RDS (MySQL 8) | Persistent relational store for all platform data |
+| **Domain** | GoDaddy | `thrivefund.live` and `api.thrivefund.live` DNS management |
+| **Email** | Brevo (Sendinblue) | Transactional emails — verification, payment receipts, invitations |
+| **Payments** | Nomba | Virtual accounts, webhook events, bank lookup, and bank transfers |
+| **CI/CD** | GitHub Actions | Type-check, test, build, and deploy on every push to `main` |
+
+---
 
 ## Architecture
 
-```mermaid
-flowchart LR
-  Contributor[Contributor]
-  VA[Nomba virtual account]
-  Webhook[Nomba webhook]
-  Recon[Reconciliation]
-  Ledger[Campaign ledger]
-  Reports[Reports + proof PDFs]
-  Payout[Payout]
-
-  Contributor --> VA --> Webhook --> Recon --> Ledger --> Reports
-  Ledger --> Payout
 ```
+                         ┌─────────────────────────────────────────────────┐
+                         │               Contributor (Public)               │
+                         └───────────────────────┬─────────────────────────┘
+                                                 │ bank transfer
+                                                 ▼
+                         ┌─────────────────────────────────────────────────┐
+                         │         Nomba Virtual Account (per campaign)     │
+                         └───────────────────────┬─────────────────────────┘
+                                                 │ webhook event
+                                                 ▼
+┌──────────────┐         ┌─────────────────────────────────────────────────┐
+│  GoDaddy DNS │────────▶│          AWS EC2  —  Node.js API (PM2)          │
+│  thrivefund  │         │                                                  │
+│    .live     │         │  ┌─────────────┐   ┌──────────────────────────┐ │
+└──────────────┘         │  │ Reconcile   │──▶│  AWS RDS  MySQL 8        │ │
+                         │  │ & Record    │   │  goals · transactions    │ │
+┌──────────────┐         │  └─────────────┘   │  contributors · payouts  │ │
+│  Cloudflare  │         │  ┌─────────────┐   └──────────────────────────┘ │
+│  Workers     │────────▶│  │ Brevo Email │                                 │
+│  (frontend)  │         │  │ receipts /  │                                 │
+└──────────────┘         │  │ invitations │                                 │
+                         │  └─────────────┘                                 │
+                         └─────────────────────────────────────────────────┘
+                                                 │
+                         ┌───────────────────────▼─────────────────────────┐
+                         │      Organizer Dashboard  (Next.js 15 on        │
+                         │      Cloudflare Workers static export)           │
+                         │  campaigns · contributors · reports · payouts    │
+                         └─────────────────────────────────────────────────┘
+```
+
+### Payment Reconciliation Flow
+
+```
+Contributor pays → Nomba virtual account
+  → Nomba fires webhook → EC2 API verifies signature
+    → Reconciliation service matches payment to goal
+      → Transaction recorded → Campaign balance updated
+        → Contributor auto-detected → Email receipt sent (Brevo)
+          → Campaign marks complete when target reached
+            → Organizer requests payout → Nomba bank transfer
+```
+
+---
 
 ## Project Structure
 
-```text
+```
 ThriveFund/
-├── backend/     # Node.js + Express + TypeScript modular monolith
-├── frontend/    # Next.js 15 + TypeScript + Tailwind dashboard
-├── docs/        # Architecture, API, webhook, and Nomba flow docs
-└── DEMO.md      # Final submission overview
+├── frontend/                        # Next.js 15 static export → Cloudflare Workers
+│   ├── app/
+│   │   ├── (public)/                # Public campaign pages
+│   │   ├── dashboard/               # Organizer dashboard (campaigns, reports, payouts)
+│   │   ├── admin/                   # Admin panel
+│   │   ├── login/                   # Login with demo credential helper
+│   │   ├── signup/                  # Signup with org creation
+│   │   ├── check-email/             # Post-signup email confirmation prompt
+│   │   └── verify-email/            # Email verification token handler
+│   ├── components/
+│   │   ├── ui/                      # Shadcn/ui primitives
+│   │   └── shared/                  # Logo, nav, layout components
+│   ├── contexts/                    # Auth context (JWT token management)
+│   ├── lib/api/                     # Typed API client and service methods
+│   └── wrangler.toml                # Cloudflare Workers deployment config
+│
+├── backend/                         # Node.js + Express + TypeScript → AWS EC2
+│   ├── src/
+│   │   ├── modules/
+│   │   │   ├── auth/                # Registration, login, email verification, JWT
+│   │   │   ├── goals/               # Campaign CRUD, lifecycle, exports
+│   │   │   ├── contributors/        # Expected payers, invitations, outstanding tracking
+│   │   │   ├── transactions/        # Payment records
+│   │   │   ├── reconciliation/      # Webhook → payment → goal matching
+│   │   │   ├── withdrawals/         # Payout request lifecycle
+│   │   │   ├── virtual-accounts/    # Nomba virtual account management
+│   │   │   ├── payout-accounts/     # Verified organizer bank accounts
+│   │   │   ├── organizations/       # Multi-org support
+│   │   │   ├── reports/             # Financial summary and reconciliation reports
+│   │   │   ├── notifications/       # In-app notification feed
+│   │   │   └── webhooks/            # Nomba webhook ingestion and retry
+│   │   ├── providers/               # Nomba payment provider adapter
+│   │   ├── lib/                     # Email (Brevo), PDF, audit log, realtime (WebSocket)
+│   │   ├── jobs/                    # Background reconciliation jobs
+│   │   └── config/                  # Database pool, environment validation
+│   ├── database/
+│   │   ├── schema.sql               # Full schema (idempotent CREATE TABLE IF NOT EXISTS)
+│   │   ├── migrations/              # Incremental ALTER TABLE migrations
+│   │   └── seed.sql                 # Demo seed data
+│   └── tests/                       # Node built-in test runner — 146 tests
+│
+├── .github/
+│   └── workflows/
+│       ├── backend.yml              # Type-check → test → build → SSH deploy to EC2
+│       └── deploy-frontend.yml      # Build → wrangler deploy to Cloudflare
+│
+└── docs/                            # Architecture, API, and webhook documentation
 ```
 
-## Documentation
-
-- [Submission Overview](./DEMO.md)
-- [Architecture Overview](./docs/architecture-overview.md)
-- [API Endpoints](./docs/api/endpoints.md)
-- [API Quick Reference](./docs/api/quick-reference.md)
-- [Webhook Specification](./docs/api/webhooks.md)
-- [Nomba Withdrawal Flow](./docs/api/nomba-withdrawals.md)
-- [Backend Modules](./docs/backend-modules.md)
-
-## Local Development
-
-Frontend:
-
-```bash
-cd frontend
-npm install
-npm run dev
-```
-
-Backend:
-
-```bash
-cd backend
-npm install
-cp .env.example .env
-mysql ... < database/schema.sql
-mysql ... < database/seed.sql
-npm run dev
-```
-
-## Verification
-
-The current implementation passes:
-
-- Backend type-check: `npm run type-check`
-- Backend tests: `npm test`
-- Frontend production build: `npm run build`
+---
 
 ## Tech Stack
 
-- Next.js 15 and React 19
-- Node.js, Express, and TypeScript
-- MySQL
-- Tailwind CSS
-- Recharts
-- Lucide React
+### Frontend
+| | |
+|---|---|
+| **Framework** | Next.js 15 (App Router, static export) |
+| **Language** | TypeScript |
+| **Styling** | Tailwind CSS + Shadcn/ui |
+| **Charts** | Recharts |
+| **Icons** | Lucide React |
+| **Hosting** | Cloudflare Workers |
+
+### Backend
+| | |
+|---|---|
+| **Runtime** | Node.js 20 |
+| **Framework** | Express + TypeScript |
+| **Database** | MySQL 8 (AWS RDS) |
+| **Process manager** | PM2 on AWS EC2 |
+| **Validation** | Zod |
+| **Email** | Brevo (Sendinblue) transactional API |
+| **Payments** | Nomba API (virtual accounts + payouts) |
+| **PDF generation** | PDFKit |
+| **WebSocket** | ws (real-time balance updates) |
+
+---
+
+## CI/CD
+
+Every push to `main` triggers two independent GitHub Actions pipelines:
+
+**Backend** (`backend.yml`):
+1. `npm run type-check` — TypeScript strict mode
+2. `npm test` — 146 unit tests (Node built-in runner)
+3. `npm run build` — compile to `dist/`
+4. SSH into EC2 → `git pull` → `npm ci` → `npm run migrate` → `npm run build` → `pm2 reload`
+
+**Frontend** (`deploy-frontend.yml`):
+1. `npm run build` — Next.js static export to `out/`
+2. `npx wrangler deploy` — push to Cloudflare Workers
+
+---
+
+## Local Development
+
+**Frontend:**
+```bash
+cd frontend
+npm install
+npm run dev          # http://localhost:3000
+```
+
+**Backend:**
+```bash
+cd backend
+npm install
+cp .env.example .env  # fill in DB credentials, Nomba keys, Brevo key
+mysql -u root -p < database/schema.sql
+mysql -u root -p < database/seed.sql
+npm run dev           # http://localhost:3001
+```
+
+**Verify:**
+```bash
+cd backend
+npm run type-check    # TypeScript check
+npm test              # run all 146 tests
+npm run build         # production build
+```
