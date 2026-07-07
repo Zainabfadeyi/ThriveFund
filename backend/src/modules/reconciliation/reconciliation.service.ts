@@ -164,9 +164,7 @@ export const reconciliationService = {
         goal_id: goalId,
         virtual_account_id: va.id as string,
         transaction_id: txnId,
-        status: classification.matchType === 'over' && classification.excessAmount > 0
-          ? ReconciliationStatus.Pending
-          : ReconciliationStatus.Matched,
+        status: ReconciliationStatus.Matched,
         notes: recNotes,
       });
 
