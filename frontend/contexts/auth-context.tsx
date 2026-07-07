@@ -89,10 +89,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     organization_phone?: string;
     organization_address?: string;
   }) => {
-    const res = await authApi.register(data);
-    setTokens(res.data.tokens);
-    setUser(res.data.user);
-    router.push('/dashboard');
+    await authApi.register(data);
+    router.push(`/check-email?email=${encodeURIComponent(data.email)}`);
   }, [router]);
 
   const logout = useCallback(async () => {

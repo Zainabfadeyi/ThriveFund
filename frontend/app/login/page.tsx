@@ -56,6 +56,27 @@ export default function LoginPage() {
                 No account? <Link href="/signup" className="text-primary hover:underline">Sign up</Link>
               </p>
             </form>
+
+            <div className="mt-6 rounded-lg border border-dashed border-amber-300 bg-amber-50 p-4 dark:border-amber-700 dark:bg-amber-950/30">
+              <p className="mb-1 text-xs font-semibold uppercase tracking-wide text-amber-700 dark:text-amber-400">
+                Demo credentials — admin only
+              </p>
+              <p className="mb-3 text-xs text-amber-600 dark:text-amber-500">
+                These credentials give access to the admin dashboard. To collect funds as a customer, please{' '}
+                <Link href="/signup" className="underline hover:text-amber-800">sign up</Link> for a free account.
+              </p>
+              <button
+                type="button"
+                onClick={() => { setEmail('admin@thrivefund.ng'); setPassword('DemoPass123!'); }}
+                className="flex w-full items-center justify-between rounded-md border border-amber-200 bg-white px-3 py-2 text-left text-xs text-gray-700 transition hover:bg-amber-50 dark:border-amber-700 dark:bg-amber-900/20 dark:text-gray-300 dark:hover:bg-amber-900/40"
+              >
+                <span>
+                  <span className="block font-medium">admin@thrivefund.ng</span>
+                  <span className="text-gray-400">{'•'.repeat(12)}</span>
+                </span>
+                <span className="ml-2 shrink-0 text-amber-600 dark:text-amber-400">Click to fill ↑</span>
+              </button>
+            </div>
           </CardContent>
         </Card>
       </div>

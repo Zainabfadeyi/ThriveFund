@@ -32,7 +32,7 @@ export default function VirtualAccountsPage() {
                   <TableHead>Bank</TableHead>
                   <TableHead>Account Name</TableHead>
                   <TableHead>Campaign</TableHead>
-                  <TableHead>Provider</TableHead>
+                  <TableHead>Status</TableHead>
                   <TableHead></TableHead>
                 </TableRow>
               </TableHeader>
@@ -43,7 +43,7 @@ export default function VirtualAccountsPage() {
                     <TableCell>{va.bank_name}</TableCell>
                     <TableCell className="max-w-[180px] truncate">{va.account_name}</TableCell>
                     <TableCell className="max-w-[200px] truncate">{va.goal_title ?? va.goal_id}</TableCell>
-                    <TableCell><StatusBadge status={String(va.provider)} /></TableCell>
+                    <TableCell><StatusBadge status={String(va.status)} /></TableCell>
                     <TableCell>
                       <Button variant="ghost" size="sm" onClick={() => { navigator.clipboard.writeText(va.account_number); toast.success('Copied'); }}>
                         <Copy className="h-4 w-4" />
