@@ -329,7 +329,7 @@ test('reconciliationService credits full over-payment amount and flags excess', 
   assert.equal(result.payment_match, 'over');
   assert.equal(result.excess_amount, 50);
   assert.deepEqual(increments, [{ goalId: 'goal_123', amount: 300 }]);
-  assert.equal(insertedRec?.status, 'pending');
+  assert.equal(insertedRec?.status, 'matched');
   assert.match(String(insertedRec?.notes), /excess ₦50/);
 });
 
@@ -405,6 +405,6 @@ test('reconciliationService records payment after completion without over-credit
   assert.equal(result.payment_match, 'over');
   assert.equal(result.excess_amount, 300);
   assert.equal(insertedTxn?.status, 'successful');
-  assert.equal(insertedRec?.status, 'pending');
+  assert.equal(insertedRec?.status, 'matched');
   assert.deepEqual(increments, []);
 });
