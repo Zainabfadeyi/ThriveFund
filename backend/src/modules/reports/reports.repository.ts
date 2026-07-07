@@ -5,17 +5,15 @@ export const reportsRepository = {
   async financialSummary(userId: string) {
     const rows = await query(
       `SELECT
-         COUNT(DISTINCT g.id) AS total_goals,
-         COUNT(DISTINCT CASE WHEN g.status = 'active' THEN g.id END) AS active_goals,
-         COALESCE(SUM(g.current_amount), 0) AS total_collected,
-         COALESCE(SUM(g.target_amount), 0) AS total_target,
-         COUNT(DISTINCT t.id) AS total_transactions,
-         COUNT(DISTINCT c.id) AS total_contributors
-       FROM goals g
-       LEFT JOIN transactions t ON t.goal_id = g.id AND t.status = 'successful'
-       LEFT JOIN contributors c ON c.goal_id = g.id
-       WHERE g.user_id = ?`,
-      [userId],
+         (SELECT COUNT(*) FROM goals WHERE user_id = ?) AS total_goals,
+         (SELECT COUNT(*) FROM goals WHERE user_id = ? AND status = 'active') AS active_goals,
+         (SELECT COALESCE(SUM(current_amount), 0) FROM goals WHERE user_id = ?) AS total_collected,
+         (SELECT COALESCE(SUM(target_amount), 0) FROM goals WHERE user_id = ?) AS total_target,
+         (SELECT COUNT(*) FROM transactions t JOIN goals g ON g.id = t.goal_id
+          WHERE g.user_id = ? AND t.status = 'successful') AS total_transactions,
+         (SELECT COUNT(*) FROM contributors c JOIN goals g ON g.id = c.goal_id
+          WHERE g.user_id = ?) AS total_contributors`,
+      [userId, userId, userId, userId, userId, userId],
     );
     return rows[0];
   },
