@@ -1,6 +1,6 @@
 # Nomba Withdrawal Flow
 
-This note documents the distinction between campaign virtual accounts and payout transfers.
+This note documents the distinction between campaign virtual accounts and payout transfers in ThriveFund.
 
 ## Source of Funds
 
@@ -10,11 +10,11 @@ Withdrawals do not transfer money out of the campaign virtual account number dir
 
 `POST /v2/transfers/bank/{subAccountId}`
 
-The request must include the parent business `accountId` header and the configured sub-account ID in the path.
+The request includes the parent business `accountId` header and the configured sub-account ID in the path.
 
 ## Transfer Payload
 
-Nomba's bank transfer payload expects the payout amount as the NGN amount, not kobo:
+Nomba's bank transfer payload uses the NGN amount, not kobo:
 
 ```json
 {
@@ -28,12 +28,12 @@ Nomba's bank transfer payload expects the payout amount as the NGN amount, not k
 }
 ```
 
-`merchantTxRef` is the idempotency key for the payout. If Nomba returns `201 PROCESSING` or `PENDING_BILLING`, keep the withdrawal in processing state and wait for webhook confirmation instead of retrying with a new reference.
+`merchantTxRef` is the idempotency key for the payout. When Nomba returns `201 PROCESSING` or `PENDING_BILLING`, ThriveFund keeps the withdrawal in processing state and waits for webhook confirmation instead of retrying with a new reference.
 
 ## Virtual Account Expiry
 
-Expiring a campaign virtual account only stops new collections to that account. It does not move funds. ThriveFund should expire the virtual account after the payout is accepted or confirmed successful, not before the transfer request is made.
+Expiring a campaign virtual account only stops new collections to that account. It does not move funds. ThriveFund expires the virtual account after the payout is accepted or confirmed successful, not before the transfer request is made.
 
 ## User-Facing Language
 
-Do not expose internal Nomba wallet or settlement-wallet wording to organizers. The dashboard should use neutral language such as "settled payout balance" or simply cap the displayed "available to withdraw" amount.
+Organizer-facing screens avoid internal Nomba wallet or settlement-wallet wording. The dashboard uses neutral language such as "settled payout balance" and caps the displayed "available to withdraw" amount.

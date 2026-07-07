@@ -261,7 +261,7 @@ test('reconciliationService completion is idempotent for already completed campa
   assert.equal(markedInactive, false);
 });
 
-test('reconciliationService credits full over-payment amount and flags excess', async () => {
+test('reconciliationService matches final over-payment when amount is more than remaining target', async () => {
   const { reconciliationService } = await import('../src/modules/reconciliation/reconciliation.service');
   const { virtualAccountsRepository } = await import('../src/modules/virtual-accounts/virtual-accounts.repository');
   const { reconciliationRepository } = await import('../src/modules/reconciliation/reconciliation.repository');
@@ -287,15 +287,15 @@ test('reconciliationService credits full over-payment amount and flags excess', 
   contributorsRepository.ensureAutoDetected = async () => undefined;
   goalsRepository.incrementAmountReturning = async (goalId: string, amount: number) => {
     increments.push({ goalId, amount });
-    return { id: goalId, current_amount: 300, target_amount: 250, status: 'active' };
+    return { id: goalId, current_amount: 500, target_amount: 300, status: 'active' };
   };
   goalsRepository.findCompletionState = async () => ({
     id: 'goal_123',
     user_id: 'usr_123',
     organization_id: 'org_123',
     title: 'School fees',
-    current_amount: 0,
-    target_amount: 250,
+    current_amount: 200,
+    target_amount: 300,
     status: 'active',
     slug: 'school-fees',
   });
@@ -327,10 +327,10 @@ test('reconciliationService credits full over-payment amount and flags excess', 
 
   assert.equal(result.matched, true);
   assert.equal(result.payment_match, 'over');
-  assert.equal(result.excess_amount, 50);
+  assert.equal(result.excess_amount, 200);
   assert.deepEqual(increments, [{ goalId: 'goal_123', amount: 300 }]);
   assert.equal(insertedRec?.status, 'matched');
-  assert.match(String(insertedRec?.notes), /excess ₦50/);
+  assert.match(String(insertedRec?.notes), /excess ₦200/);
 });
 
 test('reconciliationService records payment after completion without over-crediting ledger', async () => {

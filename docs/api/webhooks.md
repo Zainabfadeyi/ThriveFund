@@ -28,7 +28,7 @@ event_type:requestId:merchant.userId:merchant.walletId:transaction.transactionId
 
 ## Processing Rules
 
-Per the architecture document, every webhook must follow this pipeline:
+Per the architecture document, each webhook follows this pipeline:
 
 ```
 1. Receive POST
@@ -115,10 +115,10 @@ POST /api/v1/admin/webhook-events/{id}/retry
 Authorization: Bearer <admin_token>
 ```
 
-## Security Checklist
+## Security Controls
 
-- [ ] Validate Nomba webhook signature on every request
-- [ ] Store raw payload before business logic
-- [ ] Never update goal balance on failed/pending events
-- [ ] Rate-limit webhook endpoint
-- [ ] Log all unmatched account numbers for reconciliation dashboard
+- Nomba webhook signatures are validated on every request.
+- Raw payloads are stored before business logic runs.
+- Failed and pending events do not update campaign balances.
+- Webhook delivery records support admin retry and reconciliation review.
+- Unmatched account numbers are logged for the reconciliation dashboard.

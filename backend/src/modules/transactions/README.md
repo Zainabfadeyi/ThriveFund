@@ -31,6 +31,6 @@ Read-only view of payment records. Transactions are created by the Nomba webhook
 
 ## Notes
 
-- `/export` returns `text/csv`; must be defined before `/:id` in Express.
+- `/export` returns `text/csv` and is registered before `/:id` in Express.
 - Transactions are owned by the user who owns the linked goal.
 - Requires DB tables: `transactions`, `goals`.

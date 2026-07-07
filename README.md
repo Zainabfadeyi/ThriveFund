@@ -1,28 +1,74 @@
 # ThriveFund
 
-Collect and reconcile organization payments through dedicated virtual accounts.
+ThriveFund is a live payment collection and reconciliation platform for Nigerian organizers. It gives each campaign a dedicated Nomba virtual account, reconciles incoming bank transfers automatically, tracks contributors, produces audit-ready reports, and supports payout to verified organizer bank accounts.
+
+## Live Project
+
+- App: https://thrivefund.live
+- API health: https://api.thrivefund.live/api/v1/health
+- Submission overview: [DEMO.md](./DEMO.md)
+
+## What It Does
+
+- Organizer signup with automatic organization creation.
+- Campaign collections with dedicated Nomba virtual accounts.
+- Public campaign pages with account details, progress, and live payment activity.
+- Nomba webhook verification, idempotent reconciliation, and transaction recording.
+- Auto-detected contributors from successful uninvited payer names.
+- Contributor rollups where repeat payments count once as a payer and sum total contribution.
+- Campaign CSV/PDF exports and per-payment proof PDFs.
+- Verified payout accounts and payout timeline: Collected -> Settled -> Payout requested -> Paid out.
+- Admin recovery tools for webhook health, reconciliation retry, and Nomba sync.
+
+## Nomba Integration
+
+ThriveFund uses Nomba for:
+
+- Dedicated virtual account collections.
+- Payment webhook verification and reconciliation.
+- Bank lookup for payout account verification.
+- Bank transfers from the configured Nomba sub-account to organizer payout accounts.
+- Admin sync/requery flows for production recovery.
+
+## Architecture
+
+```mermaid
+flowchart LR
+  Contributor[Contributor]
+  VA[Nomba virtual account]
+  Webhook[Nomba webhook]
+  Recon[Reconciliation]
+  Ledger[Campaign ledger]
+  Reports[Reports + proof PDFs]
+  Payout[Payout]
+
+  Contributor --> VA --> Webhook --> Recon --> Ledger --> Reports
+  Ledger --> Payout
+```
 
 ## Project Structure
 
-```
+```text
 ThriveFund/
-├── docs/        # Architecture & API documentation
-├── backend/     # Node.js + Express + TypeScript (modular monolith)
-└── frontend/    # Next.js + TypeScript + Tailwind
+├── backend/     # Node.js + Express + TypeScript modular monolith
+├── frontend/    # Next.js 15 + TypeScript + Tailwind dashboard
+├── docs/        # Architecture, API, webhook, and Nomba flow docs
+└── DEMO.md      # Final submission overview
 ```
 
 ## Documentation
 
-See the [docs/](./docs/) folder for:
-
+- [Submission Overview](./DEMO.md)
 - [Architecture Overview](./docs/architecture-overview.md)
-- [API Endpoints (full reference)](./docs/api/endpoints.md)
+- [API Endpoints](./docs/api/endpoints.md)
 - [API Quick Reference](./docs/api/quick-reference.md)
 - [Webhook Specification](./docs/api/webhooks.md)
+- [Nomba Withdrawal Flow](./docs/api/nomba-withdrawals.md)
+- [Backend Modules](./docs/backend-modules.md)
 
-## Getting Started
+## Local Development
 
-### Frontend
+Frontend:
 
 ```bash
 cd frontend
@@ -30,9 +76,7 @@ npm install
 npm run dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000).
-
-### Backend
+Backend:
 
 ```bash
 cd backend
@@ -43,22 +87,19 @@ mysql ... < database/seed.sql
 npm run dev
 ```
 
-API runs at [http://localhost:3001/api/v1](http://localhost:3001/api/v1).
+## Verification
 
-See [backend/README.md](./backend/README.md) for backend setup and payment configuration.
+The current implementation passes:
 
-## Build
-
-```bash
-cd frontend
-npm run build
-npm start
-```
+- Backend type-check: `npm run type-check`
+- Backend tests: `npm test`
+- Frontend production build: `npm run build`
 
 ## Tech Stack
 
-- Next.js 15 + React 19
-- TypeScript
+- Next.js 15 and React 19
+- Node.js, Express, and TypeScript
+- MySQL
 - Tailwind CSS
 - Recharts
 - Lucide React

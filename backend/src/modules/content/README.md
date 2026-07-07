@@ -12,7 +12,7 @@ Static/reference data endpoints — categories, banks, and FAQ content. All publ
 
 ## Notes
 
-- Data is currently hardcoded in the controller. Move to DB or CMS if content needs to be dynamic.
+- Data is currently hardcoded in the controller for stable demo/reference content.
 - `/categories` is used by the create-goal form dropdown.
 - `/banks/supported` is used by the landing page FAQ.
 - `/content/faqs` is used by the landing page FAQ section.

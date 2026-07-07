@@ -17,4 +17,4 @@ The dashboard supports bulk imports from CSV/TSV files exported by Excel, Google
 
 ## Bulk Import Shape
 
-Upload files should include `name` and `email` columns. The frontend parses the file, removes duplicate or invalid emails from the send list, and calls `POST /api/v1/goals/:goalId/invitations` with up to 1,000 recipients.
+Bulk import files use `name` and `email` columns. The frontend parses the file, removes duplicate or invalid emails from the send list, and calls `POST /api/v1/goals/:goalId/invitations` with up to 1,000 recipients.

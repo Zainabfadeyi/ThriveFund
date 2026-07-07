@@ -1,11 +1,12 @@
 # ThriveFund Documentation
 
-Technical documentation for the ThriveFund platform — a goal-based savings and payment reconciliation product built on **Nomba Dedicated Virtual Accounts**.
+Technical documentation for ThriveFund, a live campaign collection and payment reconciliation platform built on **Nomba dedicated virtual accounts**.
 
 ## Documents
 
 | Document | Description |
 |----------|-------------|
+| [Submission Overview](../DEMO.md) | Live product summary, demo flow, Nomba usage, and production readiness |
 | [Architecture Overview](./architecture-overview.md) | System design, data model, payment flow, and tech stack |
 | [API Endpoints](./api/endpoints.md) | Complete REST API reference (all endpoints) |
 | [API Quick Reference](./api/quick-reference.md) | Endpoint summary table for fast lookup |
@@ -17,13 +18,12 @@ Technical documentation for the ThriveFund platform — a goal-based savings and
 
 | Environment | URL |
 |-------------|-----|
-| Production | `https://api.thrivefund.ng` |
-| Staging | `https://api-staging.thrivefund.ng` |
-| Local | `http://localhost:8000` |
+| Production | `https://api.thrivefund.live` |
+| Local | `http://localhost:3001` |
 
 All API routes are prefixed with `/api/v1` unless noted otherwise (webhooks use `/api/webhooks`).
 
 ## Related
 
 - [Frontend README](../frontend/README.md)
-- [Nomba API Documentation](https://docs.nomba.com) — use during integration for exact payloads and auth
+- [Nomba Developer Documentation](https://developer.nomba.com)
