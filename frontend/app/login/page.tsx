@@ -15,6 +15,11 @@ export default function LoginPage() {
   const [password, setPassword] = useState('');
   const [submitting, setSubmitting] = useState(false);
 
+  const fillDemo = (demoEmail: string, demoPassword: string) => {
+    setEmail(demoEmail);
+    setPassword(demoPassword);
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setSubmitting(true);
@@ -29,8 +34,6 @@ export default function LoginPage() {
   };
 
   return (
-
-    
     <div className="flex min-h-screen items-center justify-center bg-[#F8FAFC] px-4">
       <div className="w-full max-w-md space-y-8">
         <div className="flex justify-center"><Logo /></div>
@@ -59,23 +62,35 @@ export default function LoginPage() {
 
             <div className="mt-6 rounded-lg border border-dashed border-amber-300 bg-amber-50 p-4 dark:border-amber-700 dark:bg-amber-950/30">
               <p className="mb-1 text-xs font-semibold uppercase tracking-wide text-amber-700 dark:text-amber-400">
-                Demo credentials — admin only
+                Demo credentials
               </p>
               <p className="mb-3 text-xs text-amber-600 dark:text-amber-500">
-                These credentials give access to the admin dashboard. To collect funds as a customer, please{' '}
-                <Link href="/signup" className="underline hover:text-amber-800">sign up</Link> for a free account.
+                Use the customer demo for the organization dashboard, or admin for platform controls.
               </p>
-              <button
-                type="button"
-                onClick={() => { setEmail('admin@thrivefund.ng'); setPassword('DemoPass123!'); }}
-                className="flex w-full items-center justify-between rounded-md border border-amber-200 bg-white px-3 py-2 text-left text-xs text-gray-700 transition hover:bg-amber-50 dark:border-amber-700 dark:bg-amber-900/20 dark:text-gray-300 dark:hover:bg-amber-900/40"
-              >
-                <span>
-                  <span className="block font-medium">admin@thrivefund.ng</span>
-                  <span className="text-gray-400">{'•'.repeat(12)}</span>
-                </span>
-                <span className="ml-2 shrink-0 text-amber-600 dark:text-amber-400">Click to fill ↑</span>
-              </button>
+              <div className="space-y-2">
+                <button
+                  type="button"
+                  onClick={() => fillDemo('thryvenode@gmail.com', 'Demo123!')}
+                  className="flex w-full items-center justify-between rounded-md border border-amber-200 bg-white px-3 py-2 text-left text-xs text-gray-700 transition hover:bg-amber-50 dark:border-amber-700 dark:bg-amber-900/20 dark:text-gray-300 dark:hover:bg-amber-900/40"
+                >
+                  <span>
+                    <span className="block font-medium">User demo</span>
+                    <span className="block text-gray-500">thryvenode@gmail.com</span>
+                  </span>
+                  <span className="ml-2 shrink-0 text-amber-600 dark:text-amber-400">Fill</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => fillDemo('admin@thrivefund.ng', 'DemoPass123!')}
+                  className="flex w-full items-center justify-between rounded-md border border-amber-200 bg-white px-3 py-2 text-left text-xs text-gray-700 transition hover:bg-amber-50 dark:border-amber-700 dark:bg-amber-900/20 dark:text-gray-300 dark:hover:bg-amber-900/40"
+                >
+                  <span>
+                    <span className="block font-medium">Admin demo</span>
+                    <span className="block text-gray-500">admin@thrivefund.ng</span>
+                  </span>
+                  <span className="ml-2 shrink-0 text-amber-600 dark:text-amber-400">Fill</span>
+                </button>
+              </div>
             </div>
           </CardContent>
         </Card>
