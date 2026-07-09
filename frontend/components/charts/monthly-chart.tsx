@@ -13,7 +13,11 @@ export function MonthlyChart({ data }: { data: MonthlyCollection[] }) {
           axisLine={false}
           tickLine={false}
           tick={{ fill: '#64748B', fontSize: 12 }}
-          tickFormatter={(v) => `₦${(v / 1_000_000).toFixed(1)}M`}
+          tickFormatter={(v: number) => {
+            if (v >= 1_000_000) return `₦${(v / 1_000_000).toFixed(1)}M`;
+            if (v >= 1_000) return `₦${(v / 1_000).toFixed(0)}k`;
+            return `₦${v}`;
+          }}
         />
         <Tooltip
           formatter={(value: number) => [formatNaira(value), 'Collected']}

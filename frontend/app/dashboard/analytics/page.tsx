@@ -14,6 +14,19 @@ import {
 import { formatNaira } from '@/lib/utils';
 import { getAuthErrorMessage } from '@/contexts/auth-context';
 
+const CHART_MONTHS = 4;
+
+function buildChartData(monthly: { month: string; amount: number }[] | undefined) {
+  const now = new Date();
+  return Array.from({ length: CHART_MONTHS }, (_, i) => {
+    const d = new Date(now.getFullYear(), now.getMonth() - (CHART_MONTHS - 1 - i), 1);
+    const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+    const label = d.toLocaleString('default', { month: 'short' }) + ` '${String(d.getFullYear()).slice(2)}`;
+    const found = monthly?.find((m) => m.month === key);
+    return { month: label, amount: found ? Number(found.amount) : 0 };
+  });
+}
+
 export default function AnalyticsPage() {
   const { data: monthly, isLoading, error, refetch } = useAnalyticsMonthly();
   const { data: categories } = useAnalyticsCategories();
@@ -23,17 +36,15 @@ export default function AnalyticsPage() {
   if (isLoading) return <LoadingState />;
   if (error) return <ErrorState message={getAuthErrorMessage(error)} onRetry={() => refetch()} />;
 
+  const chartData = buildChartData(monthly);
+
   return (
     <div>
       <PageHeader title="Analytics" description="Contribution trends and campaign performance" />
       <div className="grid gap-6 lg:grid-cols-2">
         <Card className="lg:col-span-2">
-          <CardHeader><CardTitle>Monthly Contributions</CardTitle></CardHeader>
-          <CardContent>{monthly?.length ? <MonthlyChart data={monthly.map((m) => {
-          const [year, mon] = m.month.split('-');
-          const label = new Date(Number(year), Number(mon) - 1).toLocaleString('default', { month: 'short' }) + ` '${year.slice(2)}`;
-          return { month: label, amount: Number(m.amount) };
-        })} /> : <p className="text-sm text-muted-foreground">No data yet</p>}</CardContent>
+          <CardHeader><CardTitle>Monthly Contributions — Last 4 Months</CardTitle></CardHeader>
+          <CardContent><MonthlyChart data={chartData} /></CardContent>
         </Card>
         <Card>
           <CardHeader><CardTitle className="flex items-center gap-2"><BarChart3 className="h-5 w-5" /> By Category</CardTitle></CardHeader>
@@ -59,13 +70,24 @@ export default function AnalyticsPage() {
         </Card>
         <Card className="lg:col-span-2">
           <CardHeader><CardTitle>Goal Performance</CardTitle></CardHeader>
-          <CardContent className="space-y-3">
-            {!performance?.length ? <p className="text-sm text-muted-foreground">No campaigns yet</p> : performance.map((g) => (
-              <div key={g.id} className="flex justify-between border-b pb-2 text-sm last:border-0">
-                <span>{g.title}</span>
-                <span>{g.progress_percent}% · {formatNaira(Number(g.current_amount))}</span>
-              </div>
-            ))}
+          <CardContent className="space-y-5">
+            {!performance?.length ? <p className="text-sm text-muted-foreground">No campaigns yet</p> : performance.map((g) => {
+              const pct = Math.min(Number(g.progress_percent ?? 0), 100);
+              return (
+                <div key={g.id}>
+                  <div className="mb-1.5 flex items-center justify-between text-sm">
+                    <span className="font-medium">{g.title}</span>
+                    <span className="text-muted-foreground">{formatNaira(Number(g.current_amount))} · {pct}%</span>
+                  </div>
+                  <div className="h-2 w-full overflow-hidden rounded-full bg-muted">
+                    <div
+                      className="h-full rounded-full bg-primary transition-all"
+                      style={{ width: `${pct}%` }}
+                    />
+                  </div>
+                </div>
+              );
+            })}
           </CardContent>
         </Card>
       </div>

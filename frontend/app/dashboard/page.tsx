@@ -81,9 +81,18 @@ export default function DashboardPage() {
 
       <div className="mb-8 grid gap-6 lg:grid-cols-3">
         <Card className="lg:col-span-2">
-          <CardHeader><CardTitle>Monthly Collections</CardTitle></CardHeader>
+          <CardHeader><CardTitle>Monthly Collections — Last 4 Months</CardTitle></CardHeader>
           <CardContent>
-            {monthly?.length ? <MonthlyChart data={monthly.map((m) => ({ month: m.month, amount: Number(m.amount) }))} /> : <EmptyState title="No payments yet" description="Collections will appear here." />}
+            <MonthlyChart data={(() => {
+              const now = new Date();
+              return Array.from({ length: 4 }, (_, i) => {
+                const d = new Date(now.getFullYear(), now.getMonth() - (3 - i), 1);
+                const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+                const label = d.toLocaleString('default', { month: 'short' }) + ` '${String(d.getFullYear()).slice(2)}`;
+                const found = monthly?.find((m) => m.month === key);
+                return { month: label, amount: found ? Number(found.amount) : 0 };
+              });
+            })()} />
           </CardContent>
         </Card>
         {recon && (
