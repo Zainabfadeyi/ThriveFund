@@ -76,13 +76,13 @@ export const analyticsRepository = {
 
   async getTopContributors(userId: string, limit: number) {
     return query(
-      `SELECT MIN(TRIM(t.contributor_name)) AS name,
-              COALESCE(SUM(CASE WHEN t.status = 'successful' THEN t.amount ELSE 0 END), 0) AS total_contributed,
+      `SELECT MIN(TRIM(t.contributor_name)) AS contributor_name,
+              COALESCE(SUM(CASE WHEN t.status = 'successful' THEN t.amount ELSE 0 END), 0) AS total,
               COUNT(*) AS transaction_count
        FROM transactions t JOIN goals g ON g.id = t.goal_id
        WHERE g.user_id = ? AND t.status = 'successful'
        GROUP BY LOWER(TRIM(t.contributor_name))
-       ORDER BY total_contributed DESC
+       ORDER BY total DESC
        LIMIT ?`,
       [userId, limit],
     );

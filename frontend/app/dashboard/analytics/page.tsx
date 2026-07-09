@@ -29,14 +29,18 @@ export default function AnalyticsPage() {
       <div className="grid gap-6 lg:grid-cols-2">
         <Card className="lg:col-span-2">
           <CardHeader><CardTitle>Monthly Contributions</CardTitle></CardHeader>
-          <CardContent>{monthly?.length ? <MonthlyChart data={monthly.map((m) => ({ month: m.month, amount: Number(m.amount) }))} /> : <p className="text-sm text-muted-foreground">No data yet</p>}</CardContent>
+          <CardContent>{monthly?.length ? <MonthlyChart data={monthly.map((m) => {
+          const [year, mon] = m.month.split('-');
+          const label = new Date(Number(year), Number(mon) - 1).toLocaleString('default', { month: 'short' }) + ` '${year.slice(2)}`;
+          return { month: label, amount: Number(m.amount) };
+        })} /> : <p className="text-sm text-muted-foreground">No data yet</p>}</CardContent>
         </Card>
         <Card>
           <CardHeader><CardTitle className="flex items-center gap-2"><BarChart3 className="h-5 w-5" /> By Category</CardTitle></CardHeader>
           <CardContent className="space-y-3">
-            {!categories?.length ? <p className="text-sm text-muted-foreground">No categories yet</p> : categories.map((c) => (
-              <div key={c.category} className="flex justify-between text-sm">
-                <span className="capitalize">{c.category.replace(/_/g, ' ')}</span>
+            {!categories?.length ? <p className="text-sm text-muted-foreground">No categories yet</p> : categories.map((c, i) => (
+              <div key={c.category ?? i} className="flex justify-between text-sm">
+                <span className="capitalize">{(c.category ?? 'Uncategorised').replace(/_/g, ' ')}</span>
                 <span className="font-medium">{formatNaira(Number(c.total))}</span>
               </div>
             ))}

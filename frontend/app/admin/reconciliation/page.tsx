@@ -1,7 +1,8 @@
 'use client';
 
+import { useState } from 'react';
 import { toast } from 'sonner';
-import { RefreshCw } from 'lucide-react';
+import { RefreshCw, HelpCircle, X } from 'lucide-react';
 import { PageHeader } from '@/components/shared/page-header';
 import { LoadingState, ErrorState } from '@/components/shared/query-states';
 import { StatusBadge } from '@/components/shared/status-badge';
@@ -13,10 +14,76 @@ import { useAdminReconciliation, useAdminNombaSync, useRunNombaSync } from '@/ho
 import { formatNaira } from '@/lib/utils';
 import { getAuthErrorMessage } from '@/contexts/auth-context';
 
+function ReconciliationHelpModal({ onClose }: { onClose: () => void }) {
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 px-4" onClick={onClose}>
+      <div
+        className="relative flex max-h-[85vh] w-full max-w-lg flex-col overflow-hidden rounded-xl bg-white shadow-xl dark:bg-gray-900"
+        onClick={(e) => e.stopPropagation()}
+      >
+        {/* sticky header */}
+        <div className="flex shrink-0 items-start justify-between border-b p-5">
+          <div>
+            <h2 className="text-lg font-semibold">What is Reconciliation?</h2>
+            <p className="mt-0.5 text-sm text-muted-foreground">
+              Reconciliation matches every bank payment to the right campaign in ThriveFund.
+            </p>
+          </div>
+          <button onClick={onClose} className="ml-4 shrink-0 text-muted-foreground hover:text-foreground">
+            <X className="h-5 w-5" />
+          </button>
+        </div>
+
+        {/* scrollable body */}
+        <div className="overflow-y-auto p-5">
+          <div className="space-y-3 text-sm">
+            <div className="rounded-lg bg-muted/50 p-3">
+              <p className="font-medium">How it works</p>
+              <p className="mt-1 text-muted-foreground">
+                When a contributor sends money to a campaign&apos;s virtual account, Nomba fires a webhook. ThriveFund
+                verifies the webhook, looks up which campaign owns that account, records the transaction, and updates
+                the campaign balance. This matching step is called reconciliation.
+              </p>
+            </div>
+
+            <div className="rounded-lg bg-muted/50 p-3">
+              <p className="font-medium">What the statuses mean</p>
+              <ul className="mt-1 space-y-1 text-muted-foreground">
+                <li><span className="font-medium text-green-600">Matched</span> — payment was linked to a campaign successfully.</li>
+                <li><span className="font-medium text-yellow-600">Pending</span> — payment arrived but needs a closer look (e.g. over-payment).</li>
+                <li><span className="font-medium text-red-600">Unmatched</span> — no campaign was found for the account number; may need manual action.</li>
+                <li><span className="font-medium text-blue-600">Manual</span> — an admin resolved the record by hand.</li>
+              </ul>
+            </div>
+
+            <div className="rounded-lg bg-muted/50 p-3">
+              <p className="font-medium">What is Ledger Drift?</p>
+              <p className="mt-1 text-muted-foreground">
+                Drift is the difference between what Nomba reports as received and what ThriveFund has recorded
+                in its database. A drift of ₦0 means everything is in sync. A positive drift means some payments
+                from Nomba have not yet been recorded here.
+              </p>
+            </div>
+
+            <div className="rounded-lg bg-muted/50 p-3">
+              <p className="font-medium">What does &quot;Run sync now&quot; do?</p>
+              <p className="mt-1 text-muted-foreground">
+                It fetches the latest transactions from Nomba and compares them against the local ledger.
+                Any gaps are flagged so you can investigate or retry processing missing payments.
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function AdminReconciliationPage() {
   const { data: reconciliation, isLoading, error, refetch } = useAdminReconciliation();
   const { data: syncData, isLoading: syncLoading } = useAdminNombaSync();
   const runSync = useRunNombaSync();
+  const [showHelp, setShowHelp] = useState(false);
 
   if (isLoading || syncLoading) return <LoadingState />;
   if (error) return <ErrorState message={getAuthErrorMessage(error)} onRetry={() => refetch()} />;
@@ -35,10 +102,21 @@ export default function AdminReconciliationPage() {
 
   return (
     <div>
-      <PageHeader
-        title="Reconciliation Command Center"
-        description="Compare Nomba /transactions against your ledger and resolve mismatches"
-      />
+      {showHelp && <ReconciliationHelpModal onClose={() => setShowHelp(false)} />}
+
+      <div className="flex items-start gap-3">
+        <PageHeader
+          title="Reconciliation Command Center"
+          description="Compare Nomba /transactions against your ledger and resolve mismatches"
+        />
+        <button
+          onClick={() => setShowHelp(true)}
+          className="mt-1 shrink-0 rounded-full p-1 text-muted-foreground transition hover:bg-muted hover:text-foreground"
+          title="What is reconciliation?"
+        >
+          <HelpCircle className="h-5 w-5" />
+        </button>
+      </div>
 
       <div className="mb-6 grid gap-4 md:grid-cols-4">
         <Card>
